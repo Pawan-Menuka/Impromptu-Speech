@@ -81,16 +81,15 @@
 ## Phase 2 — Capture & store audio
 *Plan sections: E, F + R2 setup pulled forward from P*
 
-- [ ] `AudioRecorder` (MediaRecorder API)
-  - Mic permission request; start/stop controls
-  - Live waveform visualizer (Web Audio API `AnalyserNode`)
-  - Hard stop at selected duration (60s / 120s); output `Blob` (webm/opus)
-- [ ] `RecordingTimer` — visible countdown synced to recording
-- [ ] Handle permission-denied / no-mic states gracefully
-- [ ] `POST /api/upload` — receives blob, uploads to R2 via `@aws-sdk/client-s3`, returns public URL; validate size + type
-- [ ] **Configure R2 bucket CORS + public access NOW**
+- [x] `AudioRecorder` ([components/AudioRecorder.tsx](components/AudioRecorder.tsx)) — mic permission, start/stop, live waveform (`AnalyserNode`), hard stop at 60/120s, outputs `Blob`; handles denied/no-mic/error states
+- [x] `RecordingTimer` ([components/RecordingTimer.tsx](components/RecordingTimer.tsx)) — countdown bar synced to recording
+- [x] `POST /api/upload` ([app/api/upload/route.ts](app/api/upload/route.ts)) — auth-gated server-side upload to R2 via `@aws-sdk/client-s3`, validates size/type, returns public URL ([lib/r2.ts](lib/r2.ts) client)
+- [x] `record-test` page ([app/record-test/page.tsx](app/record-test/page.tsx)) — throwaway harness for the checkpoint
+- [ ] **USER ACTION:** create R2 bucket, enable public access (r2.dev or custom domain), set CORS, add `R2_*` keys to `.env.local`
 
-**✅ Checkpoint:** Record on a throwaway page → blob uploads → open the returned R2 URL in a browser and hear it. First real end-to-end slice.
+**✅ Checkpoint:** Record on `/record-test` → blob uploads → play back the returned R2 URL. First real end-to-end slice. *(code verified via `next build`; awaiting R2 creds for live test.)*
+
+> Phase 2 notes: server-side upload chosen over presigned URLs (files are tiny, keeps creds server-side, avoids PUT CORS). Route forces `runtime = "nodejs"` for the S3 SDK. MIME is normalized (strips `;codecs=opus`).
 
 ---
 
