@@ -104,9 +104,9 @@
 - [x] Returns `{ transcript, wpm, fillerCount, durationSec, words[] }`
 - [x] Cost discipline: base features only — no sentiment/entity/summary
 - [x] `record-test` extended: record → upload → transcribe → show transcript + metrics
-- [ ] **USER ACTION:** add real `ASSEMBLYAI_API_KEY` to `.env.local`, restart `npm run dev`
+- [x] **USER ACTION:** real `ASSEMBLYAI_API_KEY` added to `.env.local`
 
-**✅ Checkpoint:** Feed a real recording's URL → get back transcript + WPM + fillers. *(code verified via `next build`; awaiting AssemblyAI key for live test.)*
+**✅ Checkpoint:** Verified live against a known sample — transcript correct, WPM 185 (sane), filler detection fires (9), word timestamps in ms, polling completed in ~12s. ✅
 
 > Phase 3 notes: `transcribe()` polls to completion, so no webhook needed for V1. WPM excludes fillers and uses AssemblyAI's `audio_duration` (more accurate than client length). Word timestamps are in **milliseconds**. zod v4: use `z.url()` and `z.flattenError(err)`.
 
