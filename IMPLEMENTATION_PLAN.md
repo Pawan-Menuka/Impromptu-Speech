@@ -85,9 +85,11 @@
 - [x] `RecordingTimer` ([components/RecordingTimer.tsx](components/RecordingTimer.tsx)) — countdown bar synced to recording
 - [x] `POST /api/upload` ([app/api/upload/route.ts](app/api/upload/route.ts)) — auth-gated server-side upload to R2 via `@aws-sdk/client-s3`, validates size/type, returns public URL ([lib/r2.ts](lib/r2.ts) client)
 - [x] `record-test` page ([app/record-test/page.tsx](app/record-test/page.tsx)) — throwaway harness for the checkpoint
-- [ ] **USER ACTION:** create R2 bucket, enable public access (r2.dev or custom domain), set CORS, add `R2_*` keys to `.env.local`
+- [x] **USER ACTION:** R2 bucket `impromptu-speech-audio` created, public r2.dev access on, Account API token (Object Read & Write), `R2_*` keys in `.env.local`
 
-**✅ Checkpoint:** Record on `/record-test` → blob uploads → play back the returned R2 URL. First real end-to-end slice. *(code verified via `next build`; awaiting R2 creds for live test.)*
+**✅ Checkpoint:** Upload to R2 + public read verified end-to-end (PUT ok, public URL → 200, body match). Browser mic capture is the only manual step left. First real end-to-end slice. ✅
+
+> Phase 2 note: use an **Account API token** (not User API token) in R2 → it yields the S3 Access Key ID + Secret Access Key the SDK needs (User tokens give a `cfut_` bearer token instead). AWS SDK v3 warns Node ≥22 will be required after Jan 2027 — fine on Node 20 for now.
 
 > Phase 2 notes: server-side upload chosen over presigned URLs (files are tiny, keeps creds server-side, avoids PUT CORS). Route forces `runtime = "nodejs"` for the S3 SDK. MIME is normalized (strips `;codecs=opus`).
 
