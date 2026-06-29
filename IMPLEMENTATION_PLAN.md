@@ -81,38 +81,42 @@
 ## Phase 2 — Capture & store audio
 *Plan sections: E, F + R2 setup pulled forward from P*
 
-- [ ] `AudioRecorder` (MediaRecorder API)
-  - Mic permission request; start/stop controls
-  - Live waveform visualizer (Web Audio API `AnalyserNode`)
-  - Hard stop at selected duration (60s / 120s); output `Blob` (webm/opus)
-- [ ] `RecordingTimer` — visible countdown synced to recording
-- [ ] Handle permission-denied / no-mic states gracefully
-- [ ] `POST /api/upload` — receives blob, uploads to R2 via `@aws-sdk/client-s3`, returns public URL; validate size + type
-- [ ] **Configure R2 bucket CORS + public access NOW**
+- [x] `AudioRecorder` ([components/AudioRecorder.tsx](components/AudioRecorder.tsx)) — mic permission, start/stop, live waveform (`AnalyserNode`), hard stop at 60/120s, outputs `Blob`; handles denied/no-mic/error states
+- [x] `RecordingTimer` ([components/RecordingTimer.tsx](components/RecordingTimer.tsx)) — countdown bar synced to recording
+- [x] `POST /api/upload` ([app/api/upload/route.ts](app/api/upload/route.ts)) — auth-gated server-side upload to R2 via `@aws-sdk/client-s3`, validates size/type, returns public URL ([lib/r2.ts](lib/r2.ts) client)
+- [x] `record-test` page ([app/record-test/page.tsx](app/record-test/page.tsx)) — throwaway harness for the checkpoint
+- [x] **USER ACTION:** R2 bucket `impromptu-speech-audio` created, public r2.dev access on, Account API token (Object Read & Write), `R2_*` keys in `.env.local`
 
-**✅ Checkpoint:** Record on a throwaway page → blob uploads → open the returned R2 URL in a browser and hear it. First real end-to-end slice.
+**✅ Checkpoint:** Upload to R2 + public read verified end-to-end (PUT ok, public URL → 200, body match). Browser mic capture is the only manual step left. First real end-to-end slice. ✅
+
+> Phase 2 note: use an **Account API token** (not User API token) in R2 → it yields the S3 Access Key ID + Secret Access Key the SDK needs (User tokens give a `cfut_` bearer token instead). AWS SDK v3 warns Node ≥22 will be required after Jan 2027 — fine on Node 20 for now.
+
+> Phase 2 notes: server-side upload chosen over presigned URLs (files are tiny, keeps creds server-side, avoids PUT CORS). Route forces `runtime = "nodejs"` for the S3 SDK. MIME is normalized (strips `;codecs=opus`).
 
 ---
 
 ## Phase 3 — Transcription
 *Plan sections: G*
 
-- [ ] `POST /api/transcribe` — submit R2 URL to AssemblyAI with `disfluencies: true` + word timestamps
-- [ ] **Handle async completion** — poll (or webhook) with a sensible timeout. Decide the mechanism here.
-- [ ] Compute WPM (word count / actual duration)
-- [ ] Extract filler count from disfluency tokens
-- [ ] Return `{ transcript, wpm, fillerCount, words[] }`
-- [ ] Cost discipline: base features only — no sentiment/entity/summary
+- [x] `POST /api/transcribe` ([app/api/transcribe/route.ts](app/api/transcribe/route.ts)) — submit R2 URL to AssemblyAI with `disfluencies: true` + word timestamps; auth-gated, zod-validated, SSRF guard (only our R2 URLs)
+- [x] **Async completion** — SDK `transcribe()` polls internally; `pollingTimeout: 120s`, `pollingInterval: 3s`. Route sets `maxDuration = 120`
+- [x] Compute WPM (non-filler words / `audio_duration`) + filler count from a normalized filler set ([lib/transcription.ts](lib/transcription.ts))
+- [x] Returns `{ transcript, wpm, fillerCount, durationSec, words[] }`
+- [x] Cost discipline: base features only — no sentiment/entity/summary
+- [x] `record-test` extended: record → upload → transcribe → show transcript + metrics
+- [x] **USER ACTION:** real `ASSEMBLYAI_API_KEY` added to `.env.local`
 
-**✅ Checkpoint:** Feed a real recording's URL → get back transcript + WPM + fillers. Verify WPM is sane against a known clip.
+**✅ Checkpoint:** Verified live against a known sample — transcript correct, WPM 185 (sane), filler detection fires (9), word timestamps in ms, polling completed in ~12s. ✅
+
+> Phase 3 notes: `transcribe()` polls to completion, so no webhook needed for V1. WPM excludes fillers and uses AssemblyAI's `audio_duration` (more accurate than client length). Word timestamps are in **milliseconds**. zod v4: use `z.url()` and `z.flattenError(err)`.
 
 ---
 
 ## Phase 4 — The rating engine (spend the most time here)
 *Plan sections: H — "this is where the project lives or dies"*
 
-- [ ] `POST /api/rate`
-- [ ] Difficulty-scaled rubric in the prompt:
+- [x] `POST /api/rate` ([app/api/rate/route.ts](app/api/rate/route.ts)) — auth-gated, zod-validated
+- [x] Difficulty-scaled rubric ([lib/rubric.ts](lib/rubric.ts)):
 
 | Criteria | Easy | Medium | Hard |
 |---|---|---|---|
@@ -124,16 +128,16 @@
 | Vocabulary range | — | — | ✅ |
 | Pronunciation confidence | — | — | ✅ |
 
-- [ ] Prompt receives: transcript, WPM, fillerCount, difficulty, rubric
-- [ ] WPM/fillerCount passed as **given facts** — Claude interprets, does not invent
-- [ ] Enforce structured JSON; **Zod-validate before saving**:
-  ```ts
-  { overallScore: number, criteria: {name, score, comment}[], tips: string[] }
-  ```
-- [ ] Handle malformed output: retry once, then fail gracefully
-- [ ] **Add basic per-user rate limiting** to `/api/rate` AND `/api/transcribe` now
+- [x] Prompt receives transcript, WPM, fillerCount, difficulty, rubric; WPM/fillers passed as **given facts**
+- [x] **Structured outputs** (`output_config.format` JSON schema) enforce the shape; **Zod-validated** after ([lib/rating.ts](lib/rating.ts))
+- [x] Retry once on malformed/validation failure, then fail gracefully; handles `refusal` stop reason
+- [x] **Basic per-user rate limiting** ([lib/rateLimit.ts](lib/rateLimit.ts)) on `/api/rate` AND `/api/transcribe` (10/min/user)
+- [x] `record-test` extended: difficulty selector → rate → show scores/tips
+- [ ] **USER ACTION:** add real `ANTHROPIC_API_KEY` to `.env.local`, restart `npm run dev`
 
-**✅ Checkpoint:** Same transcript at Easy vs Hard produces visibly different rubrics and stricter scoring. JSON validates every time.
+**✅ Checkpoint:** Same transcript at Easy vs Hard produces visibly different rubrics and stricter scoring. *(code verified via `next build`; awaiting Anthropic key for live test.)*
+
+> Phase 4 notes: model is **`claude-sonnet-4-6`** (per plan's cost discipline; swap to `claude-opus-4-8` for higher quality). Used **structured outputs** instead of prompt-only JSON — the API guarantees schema conformance, so retries are rarely needed. Numeric min/max omitted from the JSON schema (unsupported by structured outputs) — range enforced in the prompt + Zod. `@anthropic-ai/sdk@0.107.0` supports `output_config` and `temperature` on Sonnet 4.6.
 
 ---
 
