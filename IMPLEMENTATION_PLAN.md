@@ -64,15 +64,17 @@
 ## Phase 1 — Topic bank
 *Plan sections: C*
 
-- [ ] `data/topics.json` — ~15–20 topics per difficulty
+- [x] `data/topics.json` — 18 topics per difficulty (54 total), each with a category
   - **Easy:** concrete/everyday ("Describe your ideal weekend")
   - **Medium:** opinion-based ("Should remote work be the default?")
   - **Hard:** abstract/argumentative ("Is privacy a right or a privilege?")
-- [ ] `prisma/seed.ts` reads JSON → inserts into `Topic`
-- [ ] `npx prisma db seed`
-- [ ] API route / server action: get random topic by difficulty
+- [x] `prisma/seed.ts` reads JSON → idempotent upsert into `Topic` (deterministic ids, FK-safe)
+- [x] `npx prisma db seed` — seed command configured in `prisma.config.ts` (`migrations.seed`), runs via `tsx`
+- [x] Query helper: `getRandomTopic(difficulty)` in [lib/topics.ts](lib/topics.ts)
 
-**✅ Checkpoint:** Query returns a random topic for a given difficulty. Unblocks the whole practice flow.
+**✅ Checkpoint:** Query returns a random topic per difficulty — verified (18/18/18, idempotent on re-seed). Unblocks the practice flow.
+
+> Phase 1 note: Prisma 7 seed command lives in `prisma.config.ts` under `migrations.seed`, not `package.json`. Requires `tsx` (dev dep). Seed loads `.env.local` and instantiates its own client with the pg adapter.
 
 ---
 
