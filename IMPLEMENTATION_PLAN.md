@@ -144,16 +144,20 @@
 ## Phase 5 — Wire the pipeline into the real practice flow
 *Plan sections: I*
 
-Single `/practice` route, internal step state:
+Single `/practice` route, internal step state ([app/practice/page.tsx](app/practice/page.tsx)):
 
-- [ ] Step 1 — `DifficultySelector` (Easy/Medium/Hard cards)
-- [ ] Step 2 — `DurationSelector` (1/2 min) + fetch random topic
-- [ ] Step 3 — `TopicCard` + `PrepCountdown` (30s)
-- [ ] Step 4 — `AudioRecorder` + `RecordingTimer`
-- [ ] Step 5 — `ProcessingScreen` orchestrates upload → transcribe → rate, with per-stage status + failure recovery (don't lose the recording if rating fails). Persist the `Session` row.
-- [ ] Step 6 — redirect to `/results/[id]`
+- [x] Step 1 — difficulty cards (Easy/Medium/Hard)
+- [x] Step 2 — duration (1/2 min) + fetch random topic via `GET /api/topics/random`
+- [x] Step 3 — topic card + 30s prep countdown (with "start now" skip)
+- [x] Step 4 — `AudioRecorder` + `RecordingTimer`
+- [x] Step 5 — processing screen orchestrates upload → transcribe → rate → save, per-stage status; recording already in R2 so it isn't lost on later failure. Persists via `POST /api/sessions`
+- [x] Step 6 — redirect to `/results/[id]` (minimal report; Phase 6 fills it out)
+- [x] Dashboard "Start practice" entry point
+- [ ] **USER ACTION:** browser happy-path test (record on `/practice`)
 
-**✅ Checkpoint:** Full happy-path run end-to-end for **one** difficulty. Per the plan, this is your demonstrable product — everything after is presentation.
+**✅ Checkpoint:** Full pipeline built and the data layer verified (Session persists with JSON criteria/tips, topic join + ownership query work; all routes compile). Browser mic run is the last manual confirmation. This is the demonstrable product.
+
+> Phase 5 notes: `POST /api/sessions` re-checks the audioUrl is from our R2 + the topic exists, and uses `getOrCreateUser` for the FK. Next 16 dynamic routes: `params` is a `Promise` (`await params`). Prisma 7 Json fields take `Prisma.InputJsonValue`.
 
 ---
 

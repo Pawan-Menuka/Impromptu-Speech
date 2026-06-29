@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getOrCreateUser } from "@/lib/getOrCreateUser";
 import { prisma } from "@/lib/prisma";
 
@@ -21,7 +22,15 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <Link
+          href="/practice"
+          className="h-10 shrink-0 rounded-full bg-foreground px-5 text-sm font-medium text-background leading-10 transition-colors hover:opacity-90"
+        >
+          Start practice
+        </Link>
+      </div>
       <p className="mt-1 text-sm text-zinc-500">
         Phase 0 checkpoint — auth + database are connected.
       </p>
