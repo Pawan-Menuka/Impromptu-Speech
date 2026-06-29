@@ -153,9 +153,9 @@ Single `/practice` route, internal step state ([app/practice/page.tsx](app/pract
 - [x] Step 5 — processing screen orchestrates upload → transcribe → rate → save, per-stage status; recording already in R2 so it isn't lost on later failure. Persists via `POST /api/sessions`
 - [x] Step 6 — redirect to `/results/[id]` (minimal report; Phase 6 fills it out)
 - [x] Dashboard "Start practice" entry point
-- [ ] **USER ACTION:** browser happy-path test (record on `/practice`)
+- [x] **USER ACTION:** browser happy-path test — ✅ confirmed working end-to-end
 
-**✅ Checkpoint:** Full pipeline built and the data layer verified (Session persists with JSON criteria/tips, topic join + ownership query work; all routes compile). Browser mic run is the last manual confirmation. This is the demonstrable product.
+**✅ Checkpoint:** Full happy-path verified in the browser — record → upload → transcribe → rate → save → results page with score/criteria/tips/transcript/audio. The demonstrable product works. ✅
 
 > Phase 5 notes: `POST /api/sessions` re-checks the audioUrl is from our R2 + the topic exists, and uses `getOrCreateUser` for the FK. Next 16 dynamic routes: `params` is a `Promise` (`await params`). Prisma 7 Json fields take `Prisma.InputJsonValue`.
 
