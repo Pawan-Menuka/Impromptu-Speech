@@ -1,15 +1,17 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { transcribeAudio } from "@/lib/transcription";
-import { R2_PUBLIC_URL } from "@/lib/r2";
+import { rateSpeech } from "@/lib/rating";
 import { rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
-// Transcription polls AssemblyAI; allow a long-running request on Vercel.
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 const BodySchema = z.object({
-  audioUrl: z.url(),
+  difficulty: z.enum(["EASY", "MEDIUM", "HARD"]),
+  transcript: z.string().min(1),
+  wpm: z.number().int().nonnegative().nullable().default(null),
+  fillerCount: z.number().int().nonnegative().nullable().default(null),
+  durationSec: z.number().nonnegative().nullable().default(null),
 });
 
 export async function POST(req: Request) {
@@ -18,8 +20,8 @@ export async function POST(req: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Cost guard: transcription is a paid call.
-  const limit = rateLimit(`transcribe:${userId}`, 10, 60_000);
+  // Cost guard: this route spends money per call.
+  const limit = rateLimit(`rate:${userId}`, 10, 60_000);
   if (!limit.ok) {
     return Response.json(
       { error: "Too many requests. Please slow down." },
@@ -42,18 +44,12 @@ export async function POST(req: Request) {
     );
   }
 
-  // SSRF / cost guard: only transcribe audio from our own R2 bucket, never an
-  // arbitrary caller-supplied URL.
-  if (!R2_PUBLIC_URL || !parsed.data.audioUrl.startsWith(`${R2_PUBLIC_URL}/`)) {
-    return Response.json({ error: "audioUrl must be an uploaded recording" }, { status: 400 });
-  }
-
   try {
-    const result = await transcribeAudio(parsed.data.audioUrl);
-    return Response.json(result);
+    const rating = await rateSpeech(parsed.data);
+    return Response.json(rating);
   } catch (err) {
-    console.error("Transcription failed:", err);
-    const message = err instanceof Error ? err.message : "Transcription failed";
+    console.error("Rating failed:", err);
+    const message = err instanceof Error ? err.message : "Rating failed";
     return Response.json({ error: message }, { status: 502 });
   }
 }

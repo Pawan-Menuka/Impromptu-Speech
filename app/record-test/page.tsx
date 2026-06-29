@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { AudioRecorder, type RecordingResult } from "@/components/AudioRecorder";
 
-// Throwaway harness for the Phase 2/3 checkpoints:
-// record -> upload to R2 -> transcribe (AssemblyAI) -> show transcript + metrics.
+// Throwaway harness for the Phase 2/3/4 checkpoints:
+// record -> upload to R2 -> transcribe (AssemblyAI) -> rate (Claude).
 // Replaced by the real practice flow in Phase 5.
 
 function extFor(mimeType: string): string {
@@ -13,6 +13,8 @@ function extFor(mimeType: string): string {
   return "webm";
 }
 
+type Difficulty = "EASY" | "MEDIUM" | "HARD";
+
 type Transcription = {
   transcript: string;
   wpm: number;
@@ -20,13 +22,21 @@ type Transcription = {
   durationSec: number;
 };
 
-type Stage = "idle" | "uploading" | "transcribing" | "done";
+type Rating = {
+  overallScore: number;
+  criteria: { name: string; score: number; comment: string }[];
+  tips: string[];
+};
+
+type Stage = "idle" | "uploading" | "transcribing" | "rating" | "done";
 
 export default function RecordTestPage() {
   const [duration, setDuration] = useState(60);
+  const [difficulty, setDifficulty] = useState<Difficulty>("MEDIUM");
   const [stage, setStage] = useState<Stage>("idle");
   const [result, setResult] = useState<{ url: string; size: number } | null>(null);
   const [transcription, setTranscription] = useState<Transcription | null>(null);
+  const [rating, setRating] = useState<Rating | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<{ seconds: number; bytes: number; type: string } | null>(null);
 
@@ -34,6 +44,7 @@ export default function RecordTestPage() {
     setError(null);
     setResult(null);
     setTranscription(null);
+    setRating(null);
     setMeta({ seconds: rec.durationSec, bytes: rec.blob.size, type: rec.mimeType });
 
     try {
@@ -58,6 +69,23 @@ export default function RecordTestPage() {
       const txData = await txRes.json();
       if (!txRes.ok) throw new Error(txData.error ?? `Transcription failed (${txRes.status})`);
       setTranscription(txData);
+
+      // 3. Rate the transcript against the chosen difficulty.
+      setStage("rating");
+      const rateRes = await fetch("/api/rate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          difficulty,
+          transcript: txData.transcript,
+          wpm: txData.wpm,
+          fillerCount: txData.fillerCount,
+          durationSec: txData.durationSec,
+        }),
+      });
+      const rateData = await rateRes.json();
+      if (!rateRes.ok) throw new Error(rateData.error ?? `Rating failed (${rateRes.status})`);
+      setRating(rateData);
       setStage("done");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -65,17 +93,34 @@ export default function RecordTestPage() {
     }
   }
 
-  const busy = stage === "uploading" || stage === "transcribing";
+  const busy = stage === "uploading" || stage === "transcribing" || stage === "rating";
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-6 py-12">
       <h1 className="text-2xl font-semibold tracking-tight">Record test</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Phase 2/3 checkpoint — record, upload to R2, then transcribe. You must be
+        Phase 2/3/4 checkpoint — record → upload → transcribe → rate. You must be
         signed in (routes are auth-gated).
       </p>
 
-      <div className="mt-8 flex gap-2">
+      <div className="mt-8 flex flex-wrap gap-2">
+        {(["EASY", "MEDIUM", "HARD"] as Difficulty[]).map((d) => (
+          <button
+            key={d}
+            onClick={() => setDifficulty(d)}
+            disabled={busy}
+            className={`h-9 rounded-full px-4 text-sm font-medium transition-colors disabled:opacity-50 ${
+              difficulty === d
+                ? "bg-foreground text-background"
+                : "border border-black/[.12] hover:bg-black/[.04] dark:border-white/[.2] dark:hover:bg-white/[.06]"
+            }`}
+          >
+            {d[0] + d.slice(1).toLowerCase()}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 flex gap-2">
         {[60, 120].map((d) => (
           <button
             key={d}
@@ -115,6 +160,9 @@ export default function RecordTestPage() {
           Transcribing… (AssemblyAI, usually 10–60s)
         </p>
       )}
+      {stage === "rating" && (
+        <p className="mt-4 text-center text-sm text-zinc-500">Rating with Claude…</p>
+      )}
 
       {error && (
         <p className="mt-4 text-center text-sm text-red-600">{error}</p>
@@ -128,14 +176,6 @@ export default function RecordTestPage() {
           <audio controls src={result.url} className="w-full">
             <track kind="captions" />
           </audio>
-          <a
-            href={result.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="break-all text-center text-xs text-zinc-500 underline"
-          >
-            {result.url}
-          </a>
         </div>
       )}
 
@@ -163,6 +203,35 @@ export default function RecordTestPage() {
               <span className="text-zinc-500">(no speech detected)</span>
             )}
           </p>
+        </div>
+      )}
+
+      {rating && (
+        <div className="mt-6 rounded-xl border border-black/[.08] p-6 dark:border-white/[.145]">
+          <div className="flex items-baseline gap-3">
+            <span className="text-4xl font-semibold">{rating.overallScore}</span>
+            <span className="text-zinc-500">/ 100 overall ({difficulty.toLowerCase()})</span>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {rating.criteria.map((c) => (
+              <div key={c.name}>
+                <div className="flex justify-between text-sm font-medium">
+                  <span>{c.name}</span>
+                  <span className="tabular-nums">{c.score}</span>
+                </div>
+                <p className="text-sm text-zinc-500">{c.comment}</p>
+              </div>
+            ))}
+          </div>
+
+          <hr className="my-4 border-black/[.08] dark:border-white/[.145]" />
+          <p className="text-sm font-medium">Tips</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-400">
+            {rating.tips.map((tip, i) => (
+              <li key={i}>{tip}</li>
+            ))}
+          </ul>
         </div>
       )}
     </main>

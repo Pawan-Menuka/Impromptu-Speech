@@ -115,8 +115,8 @@
 ## Phase 4 — The rating engine (spend the most time here)
 *Plan sections: H — "this is where the project lives or dies"*
 
-- [ ] `POST /api/rate`
-- [ ] Difficulty-scaled rubric in the prompt:
+- [x] `POST /api/rate` ([app/api/rate/route.ts](app/api/rate/route.ts)) — auth-gated, zod-validated
+- [x] Difficulty-scaled rubric ([lib/rubric.ts](lib/rubric.ts)):
 
 | Criteria | Easy | Medium | Hard |
 |---|---|---|---|
@@ -128,16 +128,16 @@
 | Vocabulary range | — | — | ✅ |
 | Pronunciation confidence | — | — | ✅ |
 
-- [ ] Prompt receives: transcript, WPM, fillerCount, difficulty, rubric
-- [ ] WPM/fillerCount passed as **given facts** — Claude interprets, does not invent
-- [ ] Enforce structured JSON; **Zod-validate before saving**:
-  ```ts
-  { overallScore: number, criteria: {name, score, comment}[], tips: string[] }
-  ```
-- [ ] Handle malformed output: retry once, then fail gracefully
-- [ ] **Add basic per-user rate limiting** to `/api/rate` AND `/api/transcribe` now
+- [x] Prompt receives transcript, WPM, fillerCount, difficulty, rubric; WPM/fillers passed as **given facts**
+- [x] **Structured outputs** (`output_config.format` JSON schema) enforce the shape; **Zod-validated** after ([lib/rating.ts](lib/rating.ts))
+- [x] Retry once on malformed/validation failure, then fail gracefully; handles `refusal` stop reason
+- [x] **Basic per-user rate limiting** ([lib/rateLimit.ts](lib/rateLimit.ts)) on `/api/rate` AND `/api/transcribe` (10/min/user)
+- [x] `record-test` extended: difficulty selector → rate → show scores/tips
+- [ ] **USER ACTION:** add real `ANTHROPIC_API_KEY` to `.env.local`, restart `npm run dev`
 
-**✅ Checkpoint:** Same transcript at Easy vs Hard produces visibly different rubrics and stricter scoring. JSON validates every time.
+**✅ Checkpoint:** Same transcript at Easy vs Hard produces visibly different rubrics and stricter scoring. *(code verified via `next build`; awaiting Anthropic key for live test.)*
+
+> Phase 4 notes: model is **`claude-sonnet-4-6`** (per plan's cost discipline; swap to `claude-opus-4-8` for higher quality). Used **structured outputs** instead of prompt-only JSON — the API guarantees schema conformance, so retries are rarely needed. Numeric min/max omitted from the JSON schema (unsupported by structured outputs) — range enforced in the prompt + Zod. `@anthropic-ai/sdk@0.107.0` supports `output_config` and `temperature` on Sonnet 4.6.
 
 ---
 
