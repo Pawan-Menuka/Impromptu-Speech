@@ -164,14 +164,16 @@ Single `/practice` route, internal step state ([app/practice/page.tsx](app/pract
 ## Phase 6 — Results page
 *Plan sections: J*
 
-- [ ] `OverallScoreCard` — big score
-- [ ] `CriteriaBreakdown` — renders only criteria for that difficulty
-- [ ] `TranscriptViewer` — full transcript
-- [ ] `FillerWordHighlighter` — inline highlights (medium/hard only)
-- [ ] `AudioPlayback` — replay recording while reviewing
-- [ ] `ImprovementTips` — Claude's actionable tips
+- [x] `OverallScoreCard` — big score, color-scaled, difficulty badge ([components/results/](components/results/))
+- [x] `CriteriaBreakdown` — per-criterion score bars (renders only that difficulty's criteria, which are what's stored)
+- [x] `TranscriptViewer` — full transcript
+- [x] Filler highlighting — inline `<mark>` on fillers (Medium/Hard only), shared detection in [lib/fillers.ts](lib/fillers.ts)
+- [x] `AudioPlayback` — replay recording while reviewing
+- [x] `ImprovementTips` — model's actionable tips
+- [x] Refactor: extracted `lib/fillers.ts` (shared by transcription + highlighter) and `lib/score.ts` (color scale)
+- [ ] **USER ACTION:** refresh an existing `/results/[id]` to see the full report
 
-**✅ Checkpoint:** A finished session renders a complete, readable report with audio replay.
+**✅ Checkpoint:** A finished session renders a complete, readable report with audio replay. *(build-verified; refresh a results page to view.)*
 
 ---
 
