@@ -133,27 +133,31 @@
 - [x] Retry once on malformed/validation failure, then fail gracefully; handles `refusal` stop reason
 - [x] **Basic per-user rate limiting** ([lib/rateLimit.ts](lib/rateLimit.ts)) on `/api/rate` AND `/api/transcribe` (10/min/user)
 - [x] `record-test` extended: difficulty selector → rate → show scores/tips
-- [ ] **USER ACTION:** add real `ANTHROPIC_API_KEY` to `.env.local`, restart `npm run dev`
+- [x] **Provider-pluggable** ([lib/rating.ts](lib/rating.ts)): `RATING_PROVIDER=anthropic` (default/prod) or `gemini` (free-tier testing). Same Zod-validated `Rating` either way.
 
-**✅ Checkpoint:** Same transcript at Easy vs Hard produces visibly different rubrics and stricter scoring. *(code verified via `next build`; awaiting Anthropic key for live test.)*
+**✅ Checkpoint:** Verified live (via Gemini) — same transcript scaled correctly: EASY 3 criteria/88, MEDIUM 5/91, HARD 7/70. Rubric + strictness scaling both confirmed. ✅
 
-> Phase 4 notes: model is **`claude-sonnet-4-6`** (per plan's cost discipline; swap to `claude-opus-4-8` for higher quality). Used **structured outputs** instead of prompt-only JSON — the API guarantees schema conformance, so retries are rarely needed. Numeric min/max omitted from the JSON schema (unsupported by structured outputs) — range enforced in the prompt + Zod. `@anthropic-ai/sdk@0.107.0` supports `output_config` and `temperature` on Sonnet 4.6.
+> Phase 4 notes: production model is **`claude-sonnet-4-6`** (per plan; swap to `claude-opus-4-8` for higher quality). Used **structured outputs** (Anthropic `output_config` JSON schema / Gemini native `responseSchema`) instead of prompt-only JSON. Numeric min/max omitted from schemas (unsupported) — range enforced in prompt + Zod. **Gemini (`gemini-2.5-flash`) added as a free testing provider** because Anthropic API requires purchased credits; flip back to Claude via one env var (`RATING_PROVIDER`).
 
 ---
 
 ## Phase 5 — Wire the pipeline into the real practice flow
 *Plan sections: I*
 
-Single `/practice` route, internal step state:
+Single `/practice` route, internal step state ([app/practice/page.tsx](app/practice/page.tsx)):
 
-- [ ] Step 1 — `DifficultySelector` (Easy/Medium/Hard cards)
-- [ ] Step 2 — `DurationSelector` (1/2 min) + fetch random topic
-- [ ] Step 3 — `TopicCard` + `PrepCountdown` (30s)
-- [ ] Step 4 — `AudioRecorder` + `RecordingTimer`
-- [ ] Step 5 — `ProcessingScreen` orchestrates upload → transcribe → rate, with per-stage status + failure recovery (don't lose the recording if rating fails). Persist the `Session` row.
-- [ ] Step 6 — redirect to `/results/[id]`
+- [x] Step 1 — difficulty cards (Easy/Medium/Hard)
+- [x] Step 2 — duration (1/2 min) + fetch random topic via `GET /api/topics/random`
+- [x] Step 3 — topic card + 30s prep countdown (with "start now" skip)
+- [x] Step 4 — `AudioRecorder` + `RecordingTimer`
+- [x] Step 5 — processing screen orchestrates upload → transcribe → rate → save, per-stage status; recording already in R2 so it isn't lost on later failure. Persists via `POST /api/sessions`
+- [x] Step 6 — redirect to `/results/[id]` (minimal report; Phase 6 fills it out)
+- [x] Dashboard "Start practice" entry point
+- [ ] **USER ACTION:** browser happy-path test (record on `/practice`)
 
-**✅ Checkpoint:** Full happy-path run end-to-end for **one** difficulty. Per the plan, this is your demonstrable product — everything after is presentation.
+**✅ Checkpoint:** Full pipeline built and the data layer verified (Session persists with JSON criteria/tips, topic join + ownership query work; all routes compile). Browser mic run is the last manual confirmation. This is the demonstrable product.
+
+> Phase 5 notes: `POST /api/sessions` re-checks the audioUrl is from our R2 + the topic exists, and uses `getOrCreateUser` for the FK. Next 16 dynamic routes: `params` is a `Promise` (`await params`). Prisma 7 Json fields take `Prisma.InputJsonValue`.
 
 ---
 
