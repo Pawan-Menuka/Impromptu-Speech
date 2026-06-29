@@ -98,14 +98,17 @@
 ## Phase 3 — Transcription
 *Plan sections: G*
 
-- [ ] `POST /api/transcribe` — submit R2 URL to AssemblyAI with `disfluencies: true` + word timestamps
-- [ ] **Handle async completion** — poll (or webhook) with a sensible timeout. Decide the mechanism here.
-- [ ] Compute WPM (word count / actual duration)
-- [ ] Extract filler count from disfluency tokens
-- [ ] Return `{ transcript, wpm, fillerCount, words[] }`
-- [ ] Cost discipline: base features only — no sentiment/entity/summary
+- [x] `POST /api/transcribe` ([app/api/transcribe/route.ts](app/api/transcribe/route.ts)) — submit R2 URL to AssemblyAI with `disfluencies: true` + word timestamps; auth-gated, zod-validated, SSRF guard (only our R2 URLs)
+- [x] **Async completion** — SDK `transcribe()` polls internally; `pollingTimeout: 120s`, `pollingInterval: 3s`. Route sets `maxDuration = 120`
+- [x] Compute WPM (non-filler words / `audio_duration`) + filler count from a normalized filler set ([lib/transcription.ts](lib/transcription.ts))
+- [x] Returns `{ transcript, wpm, fillerCount, durationSec, words[] }`
+- [x] Cost discipline: base features only — no sentiment/entity/summary
+- [x] `record-test` extended: record → upload → transcribe → show transcript + metrics
+- [ ] **USER ACTION:** add real `ASSEMBLYAI_API_KEY` to `.env.local`, restart `npm run dev`
 
-**✅ Checkpoint:** Feed a real recording's URL → get back transcript + WPM + fillers. Verify WPM is sane against a known clip.
+**✅ Checkpoint:** Feed a real recording's URL → get back transcript + WPM + fillers. *(code verified via `next build`; awaiting AssemblyAI key for live test.)*
+
+> Phase 3 notes: `transcribe()` polls to completion, so no webhook needed for V1. WPM excludes fillers and uses AssemblyAI's `audio_duration` (more accurate than client length). Word timestamps are in **milliseconds**. zod v4: use `z.url()` and `z.flattenError(err)`.
 
 ---
 
