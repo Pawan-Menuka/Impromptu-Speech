@@ -133,11 +133,11 @@
 - [x] Retry once on malformed/validation failure, then fail gracefully; handles `refusal` stop reason
 - [x] **Basic per-user rate limiting** ([lib/rateLimit.ts](lib/rateLimit.ts)) on `/api/rate` AND `/api/transcribe` (10/min/user)
 - [x] `record-test` extended: difficulty selector → rate → show scores/tips
-- [ ] **USER ACTION:** add real `ANTHROPIC_API_KEY` to `.env.local`, restart `npm run dev`
+- [x] **Provider-pluggable** ([lib/rating.ts](lib/rating.ts)): `RATING_PROVIDER=anthropic` (default/prod) or `gemini` (free-tier testing). Same Zod-validated `Rating` either way.
 
-**✅ Checkpoint:** Same transcript at Easy vs Hard produces visibly different rubrics and stricter scoring. *(code verified via `next build`; awaiting Anthropic key for live test.)*
+**✅ Checkpoint:** Verified live (via Gemini) — same transcript scaled correctly: EASY 3 criteria/88, MEDIUM 5/91, HARD 7/70. Rubric + strictness scaling both confirmed. ✅
 
-> Phase 4 notes: model is **`claude-sonnet-4-6`** (per plan's cost discipline; swap to `claude-opus-4-8` for higher quality). Used **structured outputs** instead of prompt-only JSON — the API guarantees schema conformance, so retries are rarely needed. Numeric min/max omitted from the JSON schema (unsupported by structured outputs) — range enforced in the prompt + Zod. `@anthropic-ai/sdk@0.107.0` supports `output_config` and `temperature` on Sonnet 4.6.
+> Phase 4 notes: production model is **`claude-sonnet-4-6`** (per plan; swap to `claude-opus-4-8` for higher quality). Used **structured outputs** (Anthropic `output_config` JSON schema / Gemini native `responseSchema`) instead of prompt-only JSON. Numeric min/max omitted from schemas (unsupported) — range enforced in prompt + Zod. **Gemini (`gemini-2.5-flash`) added as a free testing provider** because Anthropic API requires purchased credits; flip back to Claude via one env var (`RATING_PROVIDER`).
 
 ---
 
