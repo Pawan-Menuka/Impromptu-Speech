@@ -50,6 +50,9 @@ export default function RootLayout({
                 <Link href="/dashboard" className="font-medium">
                   Dashboard
                 </Link>
+                <Link href="/history" className="font-medium">
+                  History
+                </Link>
                 <UserButton />
               </Show>
             </nav>

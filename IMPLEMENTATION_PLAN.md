@@ -180,11 +180,14 @@ Single `/practice` route, internal step state ([app/practice/page.tsx](app/pract
 ## Phase 7 — Surrounding pages
 *Plan sections: K, L, M*
 
-- [ ] **Dashboard** (`/dashboard`): `StatsBar` (total sessions, avg score, streak), `ProgressChart` (Recharts line, avg score over time, filterable by difficulty), `RecentSessionsList`
-- [ ] **History** (`/history`): `SessionsTable` (sortable by date/score), filter by difficulty (`DifficultyBadge`), rows link to results
-- [ ] **Landing** (`/`): `HeroSection`, `HowItWorksSection`, `DifficultyPreviewSection`; redirect signed-in users to `/dashboard`
+- [x] **Dashboard** (`/dashboard`): StatsBar (total, avg, streak via [lib/stats.ts](lib/stats.ts)), Recharts ProgressChart (score over time, difficulty filter), RecentSessionsList
+- [x] **History** (`/history`): SessionsTable (sortable by date/score, difficulty filter, rows link to results, empty state)
+- [x] **Landing** (`/`): hero + how-it-works + difficulty-preview sections; header gains a History link
+- [ ] **USER ACTION:** browse `/dashboard` + `/history` (you have session data)
 
-**✅ Checkpoint:** Multiple sessions show aggregated stats and a trend chart; history is navigable.
+**✅ Checkpoint:** Aggregated stats + trend chart on the dashboard; history navigable. *(build-verified.)*
+
+> Phase 7 note: built function-first with minimal styling per user — they'll reskin with their own design later. Recharts 3.9 basic line chart API matches v2; chart is a client component.
 
 ---
 
