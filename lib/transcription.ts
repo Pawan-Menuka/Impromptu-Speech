@@ -1,15 +1,5 @@
 import { AssemblyAI } from "assemblyai";
-
-// Filler words AssemblyAI surfaces when `disfluencies` is enabled. We normalize
-// each token (lowercase, strip surrounding punctuation/brackets) before matching.
-const FILLER_WORDS = new Set([
-  "um", "umm", "uh", "uhh", "uh-huh", "hmm", "hmmm", "mm", "mhm", "mmhmm",
-  "er", "err", "ah", "ahh", "huh",
-]);
-
-function normalizeToken(text: string): string {
-  return text.toLowerCase().replace(/^[^a-z-]+|[^a-z-]+$/g, "");
-}
+import { isFillerToken } from "@/lib/fillers";
 
 export type TranscriptWordLite = {
   text: string;
@@ -61,7 +51,7 @@ export async function transcribeAudio(audioUrl: string): Promise<TranscriptionRe
 
   let fillerCount = 0;
   for (const w of words) {
-    if (FILLER_WORDS.has(normalizeToken(w.text))) fillerCount++;
+    if (isFillerToken(w.text)) fillerCount++;
   }
 
   // WPM reflects speaking pace, so it excludes filler words. AssemblyAI's

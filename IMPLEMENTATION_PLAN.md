@@ -153,9 +153,9 @@ Single `/practice` route, internal step state ([app/practice/page.tsx](app/pract
 - [x] Step 5 — processing screen orchestrates upload → transcribe → rate → save, per-stage status; recording already in R2 so it isn't lost on later failure. Persists via `POST /api/sessions`
 - [x] Step 6 — redirect to `/results/[id]` (minimal report; Phase 6 fills it out)
 - [x] Dashboard "Start practice" entry point
-- [ ] **USER ACTION:** browser happy-path test (record on `/practice`)
+- [x] **USER ACTION:** browser happy-path test — ✅ confirmed working end-to-end
 
-**✅ Checkpoint:** Full pipeline built and the data layer verified (Session persists with JSON criteria/tips, topic join + ownership query work; all routes compile). Browser mic run is the last manual confirmation. This is the demonstrable product.
+**✅ Checkpoint:** Full happy-path verified in the browser — record → upload → transcribe → rate → save → results page with score/criteria/tips/transcript/audio. The demonstrable product works. ✅
 
 > Phase 5 notes: `POST /api/sessions` re-checks the audioUrl is from our R2 + the topic exists, and uses `getOrCreateUser` for the FK. Next 16 dynamic routes: `params` is a `Promise` (`await params`). Prisma 7 Json fields take `Prisma.InputJsonValue`.
 
@@ -164,14 +164,16 @@ Single `/practice` route, internal step state ([app/practice/page.tsx](app/pract
 ## Phase 6 — Results page
 *Plan sections: J*
 
-- [ ] `OverallScoreCard` — big score
-- [ ] `CriteriaBreakdown` — renders only criteria for that difficulty
-- [ ] `TranscriptViewer` — full transcript
-- [ ] `FillerWordHighlighter` — inline highlights (medium/hard only)
-- [ ] `AudioPlayback` — replay recording while reviewing
-- [ ] `ImprovementTips` — Claude's actionable tips
+- [x] `OverallScoreCard` — big score, color-scaled, difficulty badge ([components/results/](components/results/))
+- [x] `CriteriaBreakdown` — per-criterion score bars (renders only that difficulty's criteria, which are what's stored)
+- [x] `TranscriptViewer` — full transcript
+- [x] Filler highlighting — inline `<mark>` on fillers (Medium/Hard only), shared detection in [lib/fillers.ts](lib/fillers.ts)
+- [x] `AudioPlayback` — replay recording while reviewing
+- [x] `ImprovementTips` — model's actionable tips
+- [x] Refactor: extracted `lib/fillers.ts` (shared by transcription + highlighter) and `lib/score.ts` (color scale)
+- [ ] **USER ACTION:** refresh an existing `/results/[id]` to see the full report
 
-**✅ Checkpoint:** A finished session renders a complete, readable report with audio replay.
+**✅ Checkpoint:** A finished session renders a complete, readable report with audio replay. *(build-verified; refresh a results page to view.)*
 
 ---
 
