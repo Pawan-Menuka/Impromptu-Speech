@@ -1,0 +1,55 @@
+// Impromptu Speech Trainer — Prisma schema (V1)
+// Docs: https://pris.ly/d/prisma-schema
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String    @id // Clerk user id
+  email     String    @unique
+  createdAt DateTime  @default(now())
+  sessions  Session[]
+}
+
+model Topic {
+  id         String     @id @default(cuid())
+  text       String
+  difficulty Difficulty
+  category   String?
+  sessions   Session[]
+
+  @@index([difficulty])
+}
+
+model Session {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  topicId      String
+  topic        Topic      @relation(fields: [topicId], references: [id])
+  difficulty   Difficulty
+  durationSec  Int // 60 or 120
+  audioUrl     String // R2 url
+  transcript   String     @db.Text
+  wpm          Int?
+  fillerCount  Int?
+  overallScore Int // 0-100
+  criteria     Json // per-criteria scores, varies by difficulty
+  tips         Json // array of improvement tips
+  createdAt    DateTime   @default(now())
+
+  @@index([userId, createdAt])
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
