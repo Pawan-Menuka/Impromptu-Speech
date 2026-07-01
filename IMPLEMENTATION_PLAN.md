@@ -204,6 +204,7 @@ Hardening (done):
 - [x] **Retry without re-recording** — recording kept in state; transient failures offer Retry, deterministic (empty speech) offers Start over only
 - [x] Zod validation on every JSON API boundary (transcribe/rate/sessions/topics); upload validates type/size manually
 - [x] Rate limiting on **all** paid/storage routes: rate, transcribe, upload, sessions
+- [x] Removed the `/record-test` debug harness (superseded by `/practice`)
 
 Deferred to post-reskin (need the custom UI):
 - [ ] Navbar/Footer visual design, loading **skeletons** styling, mobile responsiveness pass, toast styling
