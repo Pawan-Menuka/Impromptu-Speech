@@ -22,10 +22,18 @@ const STAGE_LABEL: Record<ProcessingStage, string> = {
   saving: "Saving your results…",
 };
 
+// Below this many transcribed words we treat the attempt as "no real speech".
+const MIN_WORDS = 3;
+
 function extFor(mimeType: string): string {
   if (mimeType.includes("mp4")) return "mp4";
   if (mimeType.includes("ogg")) return "ogg";
   return "webm";
+}
+
+function wordCount(text: string): number {
+  const t = text.trim();
+  return t ? t.split(/\s+/).length : 0;
 }
 
 export default function PracticePage() {
@@ -37,6 +45,10 @@ export default function PracticePage() {
   const [loadingTopic, setLoadingTopic] = useState(false);
   const [stage, setStage] = useState<ProcessingStage>("uploading");
   const [error, setError] = useState<string | null>(null);
+  const [canRetry, setCanRetry] = useState(false);
+  // Keep the last recording so a transient failure can be retried without
+  // forcing the user to record again.
+  const [lastRec, setLastRec] = useState<RecordingResult | null>(null);
 
   function restart() {
     setStep("difficulty");
@@ -44,9 +56,11 @@ export default function PracticePage() {
     setDurationSec(null);
     setTopic(null);
     setError(null);
+    setLastRec(null);
   }
 
   function chooseDifficulty(d: Difficulty) {
+    setError(null);
     setDifficulty(d);
     setStep("duration");
   }
@@ -72,8 +86,10 @@ export default function PracticePage() {
   const runPipeline = useCallback(
     async (rec: RecordingResult) => {
       if (!difficulty || !durationSec || !topic) return;
+      setLastRec(rec);
       setStep("processing");
       setError(null);
+      setCanRetry(true);
       try {
         setStage("uploading");
         const form = new FormData();
@@ -93,6 +109,13 @@ export default function PracticePage() {
         });
         const tx = await txRes.json();
         if (!txRes.ok) throw new Error(tx.error ?? "Transcription failed");
+
+        // Silence / too-short guard — don't waste a rating call on empty speech.
+        if (wordCount(tx.transcript ?? "") < MIN_WORDS) {
+          setError("We couldn't detect enough speech. Please record again and speak clearly.");
+          setCanRetry(false);
+          return;
+        }
 
         setStage("rating");
         const rateRes = await fetch("/api/rate", {
@@ -132,6 +155,7 @@ export default function PracticePage() {
         router.push(`/results/${saved.id}`);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Something went wrong");
+        setCanRetry(true);
       }
     },
     [difficulty, durationSec, topic, router],
@@ -139,15 +163,6 @@ export default function PracticePage() {
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-6 py-12">
-      {error && (
-        <div className="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-          <p>{error}</p>
-          <button onClick={restart} className="mt-2 font-medium underline">
-            Start over
-          </button>
-        </div>
-      )}
-
       {step === "difficulty" && (
         <section>
           <h1 className="text-2xl font-semibold tracking-tight">Choose a difficulty</h1>
@@ -185,15 +200,13 @@ export default function PracticePage() {
             ))}
           </div>
           {loadingTopic && <p className="mt-4 text-sm text-zinc-500">Picking a topic…</p>}
+          {error && !loadingTopic && (
+            <p className="mt-4 text-sm text-red-600">{error} — pick a duration to try again.</p>
+          )}
         </section>
       )}
 
-      {step === "prep" && topic && (
-        <PrepStep
-          topic={topic}
-          onReady={() => setStep("record")}
-        />
-      )}
+      {step === "prep" && topic && <PrepStep topic={topic} onReady={() => setStep("record")} />}
 
       {step === "record" && topic && durationSec && (
         <section className="flex flex-col items-center">
@@ -205,13 +218,34 @@ export default function PracticePage() {
         </section>
       )}
 
-      {step === "processing" && (
-        <section className="flex flex-col items-center py-16">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-300 border-t-foreground" />
-          <p className="mt-4 text-sm text-zinc-500">{STAGE_LABEL[stage]}</p>
-          <p className="mt-1 text-xs text-zinc-400">Please keep this tab open.</p>
-        </section>
-      )}
+      {step === "processing" &&
+        (error ? (
+          <section className="flex flex-col items-center gap-4 py-16 text-center">
+            <p className="text-sm text-red-600">{error}</p>
+            <div className="flex gap-2">
+              {canRetry && lastRec && (
+                <button
+                  onClick={() => runPipeline(lastRec)}
+                  className="h-10 rounded-full bg-foreground px-5 text-sm font-medium text-background transition-colors hover:opacity-90"
+                >
+                  Retry
+                </button>
+              )}
+              <button
+                onClick={restart}
+                className="h-10 rounded-full border border-black/[.12] px-5 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-white/[.2] dark:hover:bg-white/[.06]"
+              >
+                Start over
+              </button>
+            </div>
+          </section>
+        ) : (
+          <section className="flex flex-col items-center py-16">
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-300 border-t-foreground" />
+            <p className="mt-4 text-sm text-zinc-500">{STAGE_LABEL[stage]}</p>
+            <p className="mt-1 text-xs text-zinc-400">Please keep this tab open.</p>
+          </section>
+        ))}
     </main>
   );
 }

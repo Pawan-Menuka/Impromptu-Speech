@@ -194,14 +194,21 @@ Single `/practice` route, internal step state ([app/practice/page.tsx](app/pract
 ## Phase 8 — Polish & hardening
 *Plan sections: N, O*
 
-- [ ] `Navbar` (logo, nav, Clerk avatar) + `Footer`
-- [ ] Loading skeletons, empty states (no sessions yet), error boundaries / toasts
-- [ ] Mobile responsiveness pass
-- [ ] Edge cases: silence, very short speech, mic denied, AssemblyAI/Claude failure
-- [ ] Confirm Zod validation on every API boundary
-- [ ] Confirm rate limiting on rate/transcribe routes
+**Split: hardening done now; visual polish deferred to post-reskin (user brings own UI).**
 
-**✅ Checkpoint:** A non-technical person can use it without hitting a dead end.
+Hardening (done):
+- [x] Error boundary ([app/error.tsx](app/error.tsx), logs + reset) + custom 404 ([app/not-found.tsx](app/not-found.tsx))
+- [x] Minimal route loading states (dashboard/history/results `loading.tsx`)
+- [x] Empty states (no sessions on dashboard/history; "no speech detected" transcript)
+- [x] Edge cases: **silence/too-short speech guard** (min 3 words, skips wasted rating call), mic denied / no-mic (in recorder), AssemblyAI/Claude failure → error UI
+- [x] **Retry without re-recording** — recording kept in state; transient failures offer Retry, deterministic (empty speech) offers Start over only
+- [x] Zod validation on every JSON API boundary (transcribe/rate/sessions/topics); upload validates type/size manually
+- [x] Rate limiting on **all** paid/storage routes: rate, transcribe, upload, sessions
+
+Deferred to post-reskin (need the custom UI):
+- [ ] Navbar/Footer visual design, loading **skeletons** styling, mobile responsiveness pass, toast styling
+
+**✅ Checkpoint (functional):** No dead ends — failures show a clear message + recovery; edge cases handled. Visual polish lands with the reskin.
 
 ---
 
