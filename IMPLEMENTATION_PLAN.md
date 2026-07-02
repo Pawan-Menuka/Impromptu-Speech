@@ -180,25 +180,36 @@ Single `/practice` route, internal step state ([app/practice/page.tsx](app/pract
 ## Phase 7 — Surrounding pages
 *Plan sections: K, L, M*
 
-- [ ] **Dashboard** (`/dashboard`): `StatsBar` (total sessions, avg score, streak), `ProgressChart` (Recharts line, avg score over time, filterable by difficulty), `RecentSessionsList`
-- [ ] **History** (`/history`): `SessionsTable` (sortable by date/score), filter by difficulty (`DifficultyBadge`), rows link to results
-- [ ] **Landing** (`/`): `HeroSection`, `HowItWorksSection`, `DifficultyPreviewSection`; redirect signed-in users to `/dashboard`
+- [x] **Dashboard** (`/dashboard`): StatsBar (total, avg, streak via [lib/stats.ts](lib/stats.ts)), Recharts ProgressChart (score over time, difficulty filter), RecentSessionsList
+- [x] **History** (`/history`): SessionsTable (sortable by date/score, difficulty filter, rows link to results, empty state)
+- [x] **Landing** (`/`): hero + how-it-works + difficulty-preview sections; header gains a History link
+- [ ] **USER ACTION:** browse `/dashboard` + `/history` (you have session data)
 
-**✅ Checkpoint:** Multiple sessions show aggregated stats and a trend chart; history is navigable.
+**✅ Checkpoint:** Aggregated stats + trend chart on the dashboard; history navigable. *(build-verified.)*
+
+> Phase 7 note: built function-first with minimal styling per user — they'll reskin with their own design later. Recharts 3.9 basic line chart API matches v2; chart is a client component.
 
 ---
 
 ## Phase 8 — Polish & hardening
 *Plan sections: N, O*
 
-- [ ] `Navbar` (logo, nav, Clerk avatar) + `Footer`
-- [ ] Loading skeletons, empty states (no sessions yet), error boundaries / toasts
-- [ ] Mobile responsiveness pass
-- [ ] Edge cases: silence, very short speech, mic denied, AssemblyAI/Claude failure
-- [ ] Confirm Zod validation on every API boundary
-- [ ] Confirm rate limiting on rate/transcribe routes
+**Split: hardening done now; visual polish deferred to post-reskin (user brings own UI).**
 
-**✅ Checkpoint:** A non-technical person can use it without hitting a dead end.
+Hardening (done):
+- [x] Error boundary ([app/error.tsx](app/error.tsx), logs + reset) + custom 404 ([app/not-found.tsx](app/not-found.tsx))
+- [x] Minimal route loading states (dashboard/history/results `loading.tsx`)
+- [x] Empty states (no sessions on dashboard/history; "no speech detected" transcript)
+- [x] Edge cases: **silence/too-short speech guard** (min 3 words, skips wasted rating call), mic denied / no-mic (in recorder), AssemblyAI/Claude failure → error UI
+- [x] **Retry without re-recording** — recording kept in state; transient failures offer Retry, deterministic (empty speech) offers Start over only
+- [x] Zod validation on every JSON API boundary (transcribe/rate/sessions/topics); upload validates type/size manually
+- [x] Rate limiting on **all** paid/storage routes: rate, transcribe, upload, sessions
+- [x] Removed the `/record-test` debug harness (superseded by `/practice`)
+
+Deferred to post-reskin (need the custom UI):
+- [ ] Navbar/Footer visual design, loading **skeletons** styling, mobile responsiveness pass, toast styling
+
+**✅ Checkpoint (functional):** No dead ends — failures show a clear message + recovery; edge cases handled. Visual polish lands with the reskin.
 
 ---
 

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { auth } from "@clerk/nextjs/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getR2Client, r2PublicUrl, R2_BUCKET } from "@/lib/r2";
+import { rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,15 @@ export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Storage-cost guard.
+  const limit = rateLimit(`upload:${userId}`, 20, 60_000);
+  if (!limit.ok) {
+    return Response.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } },
+    );
   }
 
   let form: FormData;

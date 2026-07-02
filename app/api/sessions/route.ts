@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getOrCreateUser } from "@/lib/getOrCreateUser";
 import { prisma } from "@/lib/prisma";
 import { R2_PUBLIC_URL } from "@/lib/r2";
+import { rateLimit } from "@/lib/rateLimit";
 import type { Prisma } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
@@ -30,6 +31,14 @@ export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limit = rateLimit(`sessions:${userId}`, 20, 60_000);
+  if (!limit.ok) {
+    return Response.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } },
+    );
   }
 
   let json: unknown;

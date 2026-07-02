@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { getOrCreateUser } from "@/lib/getOrCreateUser";
 import { prisma } from "@/lib/prisma";
+import { avgScore, currentStreak } from "@/lib/stats";
+import { StatsBar } from "@/components/dashboard/StatsBar";
+import { ProgressChart } from "@/components/dashboard/ProgressChart";
+import { RecentSessionsList } from "@/components/dashboard/RecentSessionsList";
 
-// Phase 0 checkpoint page: confirms auth + DB are wired by syncing and showing
-// the local User row. Will be replaced by the real dashboard in Phase 7.
 export default async function DashboardPage() {
   const user = await getOrCreateUser();
-
-  // Proxy protects this route, so `user` should always be present here.
   if (!user) {
     return (
       <main className="flex flex-1 items-center justify-center">
@@ -16,9 +16,38 @@ export default async function DashboardPage() {
     );
   }
 
-  const sessionCount = await prisma.session.count({
+  const sessions = await prisma.session.findMany({
     where: { userId: user.id },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      overallScore: true,
+      difficulty: true,
+      createdAt: true,
+      topic: { select: { text: true } },
+    },
   });
+
+  const totalSessions = sessions.length;
+  const avg = avgScore(sessions.map((s) => s.overallScore));
+  const streak = currentStreak(sessions.map((s) => s.createdAt));
+
+  const points = sessions.map((s) => ({
+    date: s.createdAt.toISOString(),
+    score: s.overallScore,
+    difficulty: s.difficulty,
+  }));
+
+  const recent = [...sessions]
+    .reverse()
+    .slice(0, 5)
+    .map((s) => ({
+      id: s.id,
+      overallScore: s.overallScore,
+      difficulty: s.difficulty,
+      topic: s.topic.text,
+      createdAt: s.createdAt.toISOString(),
+    }));
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
@@ -26,33 +55,31 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <Link
           href="/practice"
-          className="h-10 shrink-0 rounded-full bg-foreground px-5 text-sm font-medium text-background leading-10 transition-colors hover:opacity-90"
+          className="h-10 shrink-0 rounded-full bg-foreground px-5 text-sm font-medium leading-10 text-background transition-colors hover:opacity-90"
         >
           Start practice
         </Link>
       </div>
-      <p className="mt-1 text-sm text-zinc-500">
-        Phase 0 checkpoint — auth + database are connected.
-      </p>
 
-      <dl className="mt-8 grid gap-4 rounded-xl border border-black/[.08] p-6 text-sm dark:border-white/[.145]">
-        <div className="flex justify-between gap-4">
-          <dt className="text-zinc-500">User ID (Clerk)</dt>
-          <dd className="font-mono">{user.id}</dd>
+      <div className="mt-8">
+        <StatsBar totalSessions={totalSessions} avgScore={avg} streak={streak} />
+      </div>
+
+      <div className="mt-10">
+        <ProgressChart points={points} />
+      </div>
+
+      <div className="mt-10">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-medium">Recent sessions</h2>
+          {totalSessions > 5 && (
+            <Link href="/history" className="text-xs text-zinc-500 hover:underline">
+              View all
+            </Link>
+          )}
         </div>
-        <div className="flex justify-between gap-4">
-          <dt className="text-zinc-500">Email</dt>
-          <dd className="font-mono">{user.email}</dd>
-        </div>
-        <div className="flex justify-between gap-4">
-          <dt className="text-zinc-500">Member since</dt>
-          <dd>{user.createdAt.toLocaleString()}</dd>
-        </div>
-        <div className="flex justify-between gap-4">
-          <dt className="text-zinc-500">Practice sessions</dt>
-          <dd>{sessionCount}</dd>
-        </div>
-      </dl>
+        <RecentSessionsList sessions={recent} />
+      </div>
     </main>
   );
 }
