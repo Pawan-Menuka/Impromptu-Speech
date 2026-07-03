@@ -1,3 +1,9 @@
+const TILES = [
+  { key: "sessions", label: "Sessions", glow: "#dc94ab" },
+  { key: "avg", label: "Avg score", glow: "#ecc0aa" },
+  { key: "streak", label: "Day streak", glow: "#8fb8d6" },
+] as const;
+
 export function StatsBar({
   totalSessions,
   avgScore,
@@ -7,22 +13,35 @@ export function StatsBar({
   avgScore: number;
   streak: number;
 }) {
-  const stats = [
-    { label: "Sessions", value: totalSessions },
-    { label: "Avg score", value: totalSessions > 0 ? avgScore : "—" },
-    { label: "Day streak", value: streak },
-  ];
+  const values: Record<string, React.ReactNode> = {
+    sessions: totalSessions,
+    avg:
+      totalSessions > 0 ? (
+        <>
+          {avgScore}
+          <span className="ml-1 font-body text-base text-faint">/100</span>
+        </>
+      ) : (
+        "—"
+      ),
+    streak,
+  };
+
   return (
-    <dl className="grid grid-cols-3 gap-3">
-      {stats.map((s) => (
-        <div
-          key={s.label}
-          className="rounded-xl border border-black/[.08] p-4 dark:border-white/[.145]"
-        >
-          <dt className="text-xs uppercase tracking-wide text-zinc-400">{s.label}</dt>
-          <dd className="mt-1 text-2xl font-semibold tabular-nums">{s.value}</dd>
+    <div className="grid gap-4 sm:grid-cols-3">
+      {TILES.map((t) => (
+        <div key={t.key} className="glass relative overflow-hidden rounded-[22px] p-6">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-40 blur-2xl"
+            style={{ background: t.glow }}
+          />
+          <p className="eyebrow">{t.label}</p>
+          <p className="mt-2 font-display text-5xl font-light leading-none">
+            {values[t.key]}
+          </p>
         </div>
       ))}
-    </dl>
+    </div>
   );
 }
