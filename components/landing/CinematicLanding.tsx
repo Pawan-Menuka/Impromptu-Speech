@@ -54,8 +54,12 @@ export function CinematicLanding() {
   const wheelAccumRef = useRef(0);
   const checkpointRef = useRef(0);
   const reducedRef = useRef(false);
+  const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [checkpoint, setCheckpoint] = useState(0);
+  // Which overlay's text is shown. Lags `checkpoint` so a checkpoint's text
+  // only fades in after its frame has finished gliding into view.
+  const [activeOverlay, setActiveOverlay] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [loadPct, setLoadPct] = useState(0);
   const [reduced, setReduced] = useState(false);
@@ -161,6 +165,14 @@ export function CinematicLanding() {
     setReduced(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   }, []);
 
+  useEffect(
+    () => () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+    },
+    [],
+  );
+
   const glideTo = useCallback(
     (target: number) => {
       const t = Math.max(0, Math.min(4, target));
@@ -174,6 +186,13 @@ export function CinematicLanding() {
       const toRecord = t === 4;
       const dur = reducedRef.current ? 0 : toRecord ? 2400 : 1400;
       const ease = toRecord ? easeInOutSine : easeInOutCubic;
+
+      // Hide any text during transit; reveal the target's text just after the
+      // frame settles.
+      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+      setActiveOverlay(-1);
+      overlayTimerRef.current = setTimeout(() => setActiveOverlay(t), dur + 180);
+
       const start = performance.now();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
@@ -377,7 +396,7 @@ export function CinematicLanding() {
       </div>
 
       {/* Overlay 0 — Intro (nudged down so her eyes clear the headline) */}
-      <Overlay active={checkpoint === 0} className="inset-0 flex translate-y-[7vh] flex-col items-center justify-center px-6 text-center">
+      <Overlay active={activeOverlay === 0} className="inset-0 flex translate-y-[7vh] flex-col items-center justify-center px-6 text-center">
         <span className="frost-pill mb-6 inline-flex items-center gap-2 rounded-full px-4 py-[7px] text-[12px] uppercase tracking-[0.34em]" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: "linear-gradient(135deg,#f0c3b6,#dc94ab)", boxShadow: "0 0 8px rgba(224,150,150,0.8)" }} />
           Impromptu Speech Trainer
@@ -406,7 +425,7 @@ export function CinematicLanding() {
       </Overlay>
 
       {/* Overlay 1 — While you speak */}
-      <Overlay active={checkpoint === 1} className="inset-0 flex items-center justify-start px-6 sm:px-[7vw] lg:px-[120px]">
+      <Overlay active={activeOverlay === 1} className="inset-0 flex items-center justify-start px-6 sm:px-[7vw] lg:px-[120px]">
         <Editorial>
           <CheckpointHead n="01" kicker="While you speak" />
           <Headline first="Every word," second="measured." />
@@ -420,7 +439,7 @@ export function CinematicLanding() {
       </Overlay>
 
       {/* Overlay 2 — After you finish */}
-      <Overlay active={checkpoint === 2} className="inset-0 flex items-start justify-start px-6 pt-24 sm:px-[7vw] sm:pt-[13vh] lg:px-[120px]">
+      <Overlay active={activeOverlay === 2} className="inset-0 flex items-start justify-start px-6 pt-24 sm:px-[7vw] sm:pt-[13vh] lg:px-[120px]">
         <Editorial>
           <CheckpointHead n="02" kicker="After you finish" />
           <Headline first="Feedback that" second="listens." />
@@ -451,7 +470,7 @@ export function CinematicLanding() {
       </Overlay>
 
       {/* Overlay 3 — Over time */}
-      <Overlay active={checkpoint === 3} className="inset-0 flex items-center justify-start px-6 pb-[20vh] sm:px-[7vw] lg:px-[120px]">
+      <Overlay active={activeOverlay === 3} className="inset-0 flex items-center justify-start px-6 pb-[20vh] sm:px-[7vw] lg:px-[120px]">
         <Editorial>
           <CheckpointHead n="03" kicker="Over time" />
           <Headline first="Watch yourself" second="grow." />
@@ -464,7 +483,7 @@ export function CinematicLanding() {
       </Overlay>
 
       {/* Overlay 4 — Mic payoff */}
-      <Overlay active={checkpoint === 4} className="inset-0 flex flex-col items-center justify-end px-6 pb-[7vh] text-center">
+      <Overlay active={activeOverlay === 4} className="inset-0 flex flex-col items-center justify-end px-6 pb-[7vh] text-center">
         <div
           aria-hidden
           className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2"
