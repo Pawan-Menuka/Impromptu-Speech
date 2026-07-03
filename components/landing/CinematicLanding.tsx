@@ -531,7 +531,7 @@ function Overlay({
 }) {
   return (
     <div
-      className={`absolute z-20 transition-opacity duration-700 ${className}`}
+      className={`absolute z-20 transition-opacity duration-[180ms] ${className}`}
       style={{ opacity: active ? 1 : 0, pointerEvents: active ? "auto" : "none" }}
     >
       {children}
