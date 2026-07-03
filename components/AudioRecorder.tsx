@@ -90,7 +90,7 @@ export function AudioRecorder({ durationSec, onComplete, disabled }: Props) {
       const { width, height } = canvas;
       ctx.clearRect(0, 0, width, height);
       ctx.lineWidth = 2;
-      ctx.strokeStyle = "#ef4444"; // red-500
+      ctx.strokeStyle = "#dc94ab"; // accent pink
       ctx.beginPath();
 
       const slice = width / bufferLength;
@@ -189,13 +189,29 @@ export function AudioRecorder({ durationSec, onComplete, disabled }: Props) {
     setStatus("idle");
   }, [durationSec, teardown]);
 
+  const isError = status === "denied" || status === "no-mic" || status === "error";
+
   return (
-    <div className="flex w-full max-w-md flex-col items-center gap-4">
+    <div className="glass mx-auto flex w-full max-w-md flex-col items-center gap-5 rounded-[22px] p-6">
+      <div className="flex w-full items-center">
+        <span className="flex items-center gap-2 font-label text-[0.7rem] uppercase tracking-[0.2em] text-muted">
+          <span
+            className={`inline-block h-2.5 w-2.5 rounded-full ${
+              status === "recording" ? "animate-pulse" : ""
+            }`}
+            style={{
+              background: status === "recording" ? "#c0243a" : "rgba(255,255,255,0.25)",
+            }}
+          />
+          {status === "recording" ? "Recording" : status === "done" ? "Done" : "Ready"}
+        </span>
+      </div>
+
       <canvas
         ref={canvasRef}
         width={420}
         height={96}
-        className="h-24 w-full rounded-lg border border-black/[.08] bg-zinc-50 dark:border-white/[.145] dark:bg-zinc-900"
+        className="h-24 w-full rounded-xl border border-white/10 bg-black/20"
       />
 
       {status === "recording" && (
@@ -206,9 +222,9 @@ export function AudioRecorder({ durationSec, onComplete, disabled }: Props) {
         <button
           onClick={start}
           disabled={disabled}
-          className="flex h-11 items-center gap-2 rounded-full bg-red-500 px-6 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+          className="btn-accent flex h-12 items-center gap-2 rounded-full px-8 font-label text-xs uppercase tracking-[0.2em] disabled:opacity-50"
         >
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-white" />
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#2a1418]" />
           Start recording
         </button>
       )}
@@ -216,9 +232,9 @@ export function AudioRecorder({ durationSec, onComplete, disabled }: Props) {
       {status === "recording" && (
         <button
           onClick={stop}
-          className="flex h-11 items-center gap-2 rounded-full border border-red-500 px-6 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-950"
+          className="btn-ghost flex h-12 items-center gap-2 rounded-full px-8 font-label text-xs uppercase tracking-[0.2em]"
         >
-          <span className="inline-block h-2.5 w-2.5 rounded-[2px] bg-red-600" />
+          <span className="inline-block h-2.5 w-2.5 rounded-[2px]" style={{ background: "#e0788a" }} />
           Stop
         </button>
       )}
@@ -226,38 +242,28 @@ export function AudioRecorder({ durationSec, onComplete, disabled }: Props) {
       {status === "done" && (
         <button
           onClick={reset}
-          className="h-11 rounded-full border border-black/[.12] px-6 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-white/[.2] dark:hover:bg-white/[.06]"
+          className="btn-ghost h-12 rounded-full px-8 font-label text-xs uppercase tracking-[0.2em]"
         >
           Record again
         </button>
       )}
 
-      {status === "denied" && (
-        <p className="text-center text-sm text-red-600">
-          Microphone access was blocked. Allow mic access in your browser
-          settings, then{" "}
-          <button onClick={reset} className="underline">
-            try again
+      {isError && (
+        <div className="flex flex-col items-center gap-3 text-center">
+          <p className="text-sm" style={{ color: "#e0788a" }}>
+            {status === "denied"
+              ? "Microphone access was blocked. Allow mic access in your browser settings."
+              : status === "no-mic"
+                ? "No microphone was found. Connect one and try again."
+                : (errorMsg ?? "Something went wrong.")}
+          </p>
+          <button
+            onClick={reset}
+            className="btn-ghost h-10 rounded-full px-6 font-label text-xs uppercase tracking-[0.2em]"
+          >
+            Try again
           </button>
-          .
-        </p>
-      )}
-      {status === "no-mic" && (
-        <p className="text-center text-sm text-red-600">
-          No microphone was found. Connect one and{" "}
-          <button onClick={reset} className="underline">
-            try again
-          </button>
-          .
-        </p>
-      )}
-      {status === "error" && (
-        <p className="text-center text-sm text-red-600">
-          {errorMsg ?? "Something went wrong."}{" "}
-          <button onClick={reset} className="underline">
-            try again
-          </button>
-        </p>
+        </div>
       )}
     </div>
   );

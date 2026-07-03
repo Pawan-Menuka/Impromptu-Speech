@@ -1,26 +1,213 @@
 @import "tailwindcss";
 
+/*
+ * Impromptu — design system (from UI/README.md handoff).
+ * Dark, cinematic aesthetic: near-black bg, warm off-white text, pink accent
+ * gradient, glass surfaces, elegant Cormorant display type.
+ */
+
+@theme {
+  /* Core */
+  --color-bg: #0b0809;
+  --color-fg: #f4efec;
+  --color-muted: #b7a9a3; /* dimmed body text */
+  --color-faint: #8a7d78; /* meta / captions */
+
+  /* Accent */
+  --color-accent: #dc94ab;
+  --color-accent-2: #ecc0aa;
+  --color-blush: #f0c3b6;
+  --color-on-accent: #2a1418;
+
+  /* Semantic (difficulty + score) */
+  --color-easy: #63d29b;
+  --color-medium: #e8b45c;
+  --color-hard: #e0788a;
+  --color-record: #c0243a;
+
+  /* Back-compat tokens (existing components still reference these) */
+  --color-background: #0b0809;
+  --color-foreground: #f4efec;
+
+  /* Fonts */
+  --font-display: var(--font-cormorant), Georgia, serif;
+  --font-body: var(--font-hanken), system-ui, sans-serif;
+  --font-label: var(--font-jost), system-ui, sans-serif;
+  --font-sans: var(--font-hanken), system-ui, sans-serif;
+
+  /* Radii */
+  --radius-pill: 100px;
+  --radius-card: 22px;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Reusable primitives ---- */
+
+/* Glass surface (cards, header) */
+.glass {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.012)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.glass-header {
+  background: rgba(11, 8, 9, 0.6);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Logo dot */
+.logo-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, #e6b6a0, #8fb8d6);
+  display: inline-block;
+}
+
+/* Primary accent (gradient) button */
+.btn-accent {
+  background: linear-gradient(135deg, var(--color-accent-2), var(--color-accent));
+  color: var(--color-on-accent);
+  box-shadow: 0 10px 30px rgba(220, 148, 150, 0.3);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.btn-accent:hover {
+  box-shadow: 0 14px 40px rgba(220, 148, 150, 0.45);
+}
+
+/* Ghost / secondary button — glassmorphism (translucent + blurred) */
+.btn-ghost {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  color: var(--color-fg);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.42);
+}
+
+/* Uppercase eyebrow / kicker label */
+.eyebrow {
+  font-family: var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-size: 0.7rem;
+  color: rgba(240, 200, 190, 0.75);
+}
+
+/* Landing overlay text — opacity/transform driven imperatively per-frame from
+   the scroll-scrub progress (see CinematicLanding). Hidden by default so
+   nothing flashes before JS takes over. */
+.overlay-content {
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity, transform;
+}
+
+/* Ambient background glows (fixed, behind everything) */
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(600px circle at 12% 8%, rgba(220, 148, 171, 0.1), transparent 60%),
+    radial-gradient(700px circle at 88% 92%, rgba(143, 184, 214, 0.08), transparent 60%);
+}
+
+/* Hairline divider color helper */
+.hairline {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ---- Motion ---- */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-fade-up {
+  animation: fadeUp 0.6s ease both;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up {
+    animation: none;
+  }
+}
+
+/* ---- Landing (cinematic) ---- */
+
+/* Frosted eyebrow pill that stays legible over the bright florals */
+.frost-pill {
+  background: rgba(18, 10, 12, 0.42);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(240, 200, 190, 0.35);
+  color: #fff4ef;
+}
+
+@keyframes petalFall {
+  from {
+    transform: translateY(-12vh);
+  }
+  to {
+    transform: translateY(112vh);
+  }
+}
+
+@keyframes petalSway {
+  0%,
+  100% {
+    transform: translateX(-14px) rotate(0deg);
+  }
+  50% {
+    transform: translateX(14px) rotate(360deg);
+  }
+}
+
+@keyframes recordPulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+.record-pulse::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 9999px;
+  border: 1px solid rgba(226, 170, 160, 0.6);
+  animation: recordPulse 2.4s ease-out infinite;
 }

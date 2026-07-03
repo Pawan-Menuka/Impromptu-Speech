@@ -7,7 +7,7 @@ export default async function HistoryPage() {
   if (!user) {
     return (
       <main className="flex flex-1 items-center justify-center">
-        <p className="text-zinc-500">Not signed in.</p>
+        <p className="text-muted">Not signed in.</p>
       </main>
     );
   }
@@ -34,8 +34,11 @@ export default async function HistoryPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">History</h1>
-      <p className="mt-1 text-sm text-zinc-500">All your practice sessions.</p>
+      <div className="animate-fade-up">
+        <p className="eyebrow">Your record</p>
+        <h1 className="mt-1 font-display text-4xl font-light tracking-tight">History</h1>
+        <p className="mt-2 text-sm text-muted">All your practice sessions.</p>
+      </div>
       <div className="mt-8">
         <SessionsTable sessions={rows} />
       </div>
