@@ -8,6 +8,15 @@ import { TranscriptViewer } from "@/components/results/TranscriptViewer";
 import { AudioPlayback } from "@/components/results/AudioPlayback";
 import { ImprovementTips } from "@/components/results/ImprovementTips";
 
+function Metric({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="glass rounded-[18px] p-4 text-center">
+      <div className="font-display text-3xl font-light">{value}</div>
+      <div className="eyebrow mt-1">{label}</div>
+    </div>
+  );
+}
+
 export default async function ResultsPage({
   params,
 }: {
@@ -33,18 +42,21 @@ export default async function ResultsPage({
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
       <div className="flex items-center justify-between">
-        <Link href="/dashboard" className="text-sm text-zinc-500 hover:underline">
+        <Link
+          href="/dashboard"
+          className="font-label text-xs uppercase tracking-[0.15em] text-muted hover:text-fg"
+        >
           ← Dashboard
         </Link>
         <Link
           href="/practice"
-          className="h-9 rounded-full bg-foreground px-4 text-sm font-medium leading-9 text-background transition-colors hover:opacity-90"
+          className="btn-accent rounded-full px-5 py-2.5 font-label text-xs uppercase tracking-[0.2em]"
         >
           Practice again
         </Link>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-8 animate-fade-up">
         <OverallScoreCard
           score={session.overallScore}
           difficulty={session.difficulty}
@@ -52,26 +64,13 @@ export default async function ResultsPage({
         />
       </div>
 
-      <div className="mt-6 flex gap-6 text-sm tabular-nums">
-        {session.wpm != null && (
-          <span>
-            <span className="font-semibold">{session.wpm}</span>{" "}
-            <span className="text-zinc-500">WPM</span>
-          </span>
-        )}
-        {session.fillerCount != null && (
-          <span>
-            <span className="font-semibold">{session.fillerCount}</span>{" "}
-            <span className="text-zinc-500">filler words</span>
-          </span>
-        )}
-        <span>
-          <span className="font-semibold">{session.durationSec}s</span>{" "}
-          <span className="text-zinc-500">time limit</span>
-        </span>
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <Metric label="Words / min" value={session.wpm ?? "—"} />
+        <Metric label="Filler words" value={session.fillerCount ?? "—"} />
+        <Metric label="Time limit" value={`${session.durationSec}s`} />
       </div>
 
-      <div className="mt-8 space-y-8">
+      <div className="mt-10 space-y-10">
         <CriteriaBreakdown criteria={criteria} />
         <ImprovementTips tips={tips} />
         <AudioPlayback src={session.audioUrl} />

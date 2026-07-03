@@ -10,32 +10,34 @@ export function TranscriptViewer({
   return (
     <section>
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium">Transcript</h2>
+        <h2 className="font-display text-2xl font-light">Transcript</h2>
         {highlightFillers && (
-          <span className="text-xs text-zinc-400">filler words highlighted</span>
+          <span className="flex items-center gap-1.5 font-label text-[0.65rem] uppercase tracking-[0.15em] text-faint">
+            <span className="rounded bg-[#e8b45c]/25 px-1 text-[#e8b45c]">filler</span>
+            highlighted
+          </span>
         )}
       </div>
 
-      {!transcript ? (
-        <p className="mt-2 text-sm text-zinc-500">(no speech detected)</p>
-      ) : highlightFillers ? (
-        <p className="mt-2 whitespace-pre-wrap text-sm leading-7">
-          {tokenizeTranscript(transcript).map((t, i) =>
-            t.isFiller ? (
-              <mark
-                key={i}
-                className="rounded bg-amber-200 px-0.5 text-amber-900 dark:bg-amber-500/30 dark:text-amber-200"
-              >
-                {t.text}
-              </mark>
-            ) : (
-              <span key={i}>{t.text}</span>
-            ),
-          )}
-        </p>
-      ) : (
-        <p className="mt-2 whitespace-pre-wrap text-sm leading-7">{transcript}</p>
-      )}
+      <div className="glass mt-4 rounded-[18px] p-6">
+        {!transcript ? (
+          <p className="text-sm text-muted">(no speech detected)</p>
+        ) : highlightFillers ? (
+          <p className="whitespace-pre-wrap text-sm leading-7 text-muted">
+            {tokenizeTranscript(transcript).map((t, i) =>
+              t.isFiller ? (
+                <mark key={i} className="rounded bg-[#e8b45c]/25 px-0.5 text-[#e8b45c]">
+                  {t.text}
+                </mark>
+              ) : (
+                <span key={i}>{t.text}</span>
+              ),
+            )}
+          </p>
+        ) : (
+          <p className="whitespace-pre-wrap text-sm leading-7 text-muted">{transcript}</p>
+        )}
+      </div>
     </section>
   );
 }

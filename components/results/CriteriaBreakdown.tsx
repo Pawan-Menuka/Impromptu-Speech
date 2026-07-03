@@ -1,4 +1,4 @@
-import { scoreColor } from "@/lib/score";
+import { hexA, scoreHex } from "@/lib/colors";
 
 export type Criterion = { name: string; score: number; comment: string };
 
@@ -6,23 +6,26 @@ export function CriteriaBreakdown({ criteria }: { criteria: Criterion[] }) {
   if (criteria.length === 0) return null;
   return (
     <section>
-      <h2 className="text-sm font-medium">Breakdown</h2>
-      <div className="mt-4 space-y-4">
+      <h2 className="font-display text-2xl font-light">Breakdown</h2>
+      <div className="mt-5 space-y-5">
         {criteria.map((c) => {
-          const color = scoreColor(c.score);
+          const sc = scoreHex(c.score);
+          const width = Math.max(0, Math.min(100, c.score));
           return (
             <div key={c.name}>
-              <div className="flex justify-between text-sm font-medium">
-                <span>{c.name}</span>
-                <span className="tabular-nums">{c.score}</span>
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm font-medium">{c.name}</span>
+                <span className="font-display text-xl font-light" style={{ color: sc }}>
+                  {c.score}
+                </span>
               </div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/[.08]">
                 <div
-                  className={`h-full rounded-full ${color.bar}`}
-                  style={{ width: `${Math.max(0, Math.min(100, c.score))}%` }}
+                  className="h-full rounded-full"
+                  style={{ width: `${width}%`, background: `linear-gradient(90deg, ${hexA(sc, 0.6)}, ${sc})` }}
                 />
               </div>
-              <p className="mt-1.5 text-sm text-zinc-500">{c.comment}</p>
+              <p className="mt-2 text-sm text-muted">{c.comment}</p>
             </div>
           );
         })}
