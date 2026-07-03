@@ -8,7 +8,7 @@ function format(seconds: number): string {
 }
 
 /**
- * Presentational countdown bar for an in-progress recording.
+ * Presentational countdown for an in-progress recording (big timer + bar).
  * The recorder owns the timing; this just renders it.
  */
 export function RecordingTimer({
@@ -23,18 +23,24 @@ export function RecordingTimer({
 
   return (
     <div className="w-full">
-      <div className="flex items-baseline justify-between text-sm tabular-nums">
-        <span className={low ? "font-semibold text-red-600" : "font-medium"}>
+      <div className="flex items-baseline justify-between">
+        <span
+          className="font-display text-4xl font-light tabular-nums"
+          style={low ? { color: "#e0788a" } : undefined}
+        >
           {format(secondsLeft)}
         </span>
-        <span className="text-zinc-500">{total}s limit</span>
+        <span className="font-label text-[0.7rem] uppercase tracking-[0.15em] text-faint">
+          {total}s limit
+        </span>
       </div>
-      <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
         <div
-          className={`h-full transition-[width] duration-500 ease-linear ${
-            low ? "bg-red-600" : "bg-red-500"
-          }`}
-          style={{ width: `${pct}%` }}
+          className="h-full rounded-full transition-[width] duration-500 ease-linear"
+          style={{
+            width: `${pct}%`,
+            background: low ? "#c0243a" : "linear-gradient(90deg, #ecc0aa, #dc94ab)",
+          }}
         />
       </div>
     </div>

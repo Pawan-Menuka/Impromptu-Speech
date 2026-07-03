@@ -3,24 +3,35 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AudioRecorder, type RecordingResult } from "@/components/AudioRecorder";
+import { hexA } from "@/lib/colors";
 
 type Difficulty = "EASY" | "MEDIUM" | "HARD";
 type Step = "difficulty" | "duration" | "prep" | "record" | "processing";
 type Topic = { id: string; text: string; difficulty: Difficulty; category: string | null };
 type ProcessingStage = "uploading" | "transcribing" | "rating" | "saving";
 
-const DIFFICULTIES: { value: Difficulty; label: string; blurb: string }[] = [
-  { value: "EASY", label: "Easy", blurb: "Concrete, everyday topics. Encouraging feedback." },
-  { value: "MEDIUM", label: "Medium", blurb: "Opinion-based topics. Delivery starts to count." },
-  { value: "HARD", label: "Hard", blurb: "Abstract & argumentative. Strict, full rubric." },
+const DIFFICULTIES: {
+  value: Difficulty;
+  label: string;
+  color: string;
+  criteria: number;
+  blurb: string;
+  sample: string;
+}[] = [
+  { value: "EASY", label: "Easy", color: "#63d29b", criteria: 3, blurb: "Concrete, everyday topics. Encouraging feedback.", sample: "Describe your ideal weekend." },
+  { value: "MEDIUM", label: "Medium", color: "#e8b45c", criteria: 5, blurb: "Opinion-based topics. Delivery starts to count.", sample: "Should remote work be the default?" },
+  { value: "HARD", label: "Hard", color: "#e0788a", criteria: 7, blurb: "Abstract & argumentative. Strict, full rubric.", sample: "Is privacy a right or a privilege?" },
 ];
 
+const STAGE_ORDER: ProcessingStage[] = ["uploading", "transcribing", "rating", "saving"];
 const STAGE_LABEL: Record<ProcessingStage, string> = {
   uploading: "Uploading your recording…",
   transcribing: "Transcribing… (usually 10–60s)",
   rating: "Scoring your speech…",
   saving: "Saving your results…",
 };
+
+const STEP_LABELS = ["Difficulty", "Duration", "Prepare", "Record"];
 
 // Below this many transcribed words we treat the attempt as "no real speech".
 const MIN_WORDS = 3;
@@ -36,6 +47,44 @@ function wordCount(text: string): number {
   return t ? t.split(/\s+/).length : 0;
 }
 
+function StepRail({ current }: { current: number }) {
+  return (
+    <div className="mb-12 flex items-center justify-center">
+      {STEP_LABELS.map((label, i) => {
+        const n = i + 1;
+        const done = n < current;
+        const active = n === current;
+        return (
+          <div key={label} className="flex items-center">
+            <div className="flex items-center gap-2">
+              <span
+                className={`flex h-7 w-7 items-center justify-center rounded-full font-label text-xs ${
+                  active ? "btn-accent" : ""
+                }`}
+                style={
+                  active
+                    ? undefined
+                    : { background: "rgba(255,255,255,0.06)", color: done ? "#f4efec" : "#8a7d78" }
+                }
+              >
+                {done ? "✓" : n}
+              </span>
+              <span
+                className={`hidden font-label text-[0.7rem] uppercase tracking-[0.15em] sm:inline ${
+                  active ? "text-fg" : "text-faint"
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+            {i < STEP_LABELS.length - 1 && <span className="mx-3 h-px w-6 bg-white/10 sm:w-10" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function PracticePage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("difficulty");
@@ -46,8 +95,6 @@ export default function PracticePage() {
   const [stage, setStage] = useState<ProcessingStage>("uploading");
   const [error, setError] = useState<string | null>(null);
   const [canRetry, setCanRetry] = useState(false);
-  // Keep the last recording so a transient failure can be retried without
-  // forcing the user to record again.
   const [lastRec, setLastRec] = useState<RecordingResult | null>(null);
 
   function restart() {
@@ -110,7 +157,6 @@ export default function PracticePage() {
         const tx = await txRes.json();
         if (!txRes.ok) throw new Error(tx.error ?? "Transcription failed");
 
-        // Silence / too-short guard — don't waste a rating call on empty speech.
         if (wordCount(tx.transcript ?? "") < MIN_WORDS) {
           setError("We couldn't detect enough speech. Please record again and speak clearly.");
           setCanRetry(false);
@@ -161,21 +207,37 @@ export default function PracticePage() {
     [difficulty, durationSec, topic, router],
   );
 
+  const railStep =
+    step === "difficulty" ? 1 : step === "duration" ? 2 : step === "prep" ? 3 : 4;
+
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-6 py-12">
+    <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
+      {step !== "processing" && <StepRail current={railStep} />}
+
       {step === "difficulty" && (
-        <section>
-          <h1 className="text-2xl font-semibold tracking-tight">Choose a difficulty</h1>
-          <p className="mt-1 text-sm text-zinc-500">Strictness and the scoring rubric scale up with each level.</p>
-          <div className="mt-6 grid gap-3">
+        <section className="animate-fade-up text-center">
+          <h1 className="font-display text-4xl font-light tracking-tight">Choose a difficulty</h1>
+          <p className="mt-2 text-sm text-muted">Strictness and the scoring rubric scale up with each level.</p>
+          <div className="mt-8 grid gap-4">
             {DIFFICULTIES.map((d) => (
               <button
                 key={d.value}
                 onClick={() => chooseDifficulty(d.value)}
-                className="rounded-xl border border-black/[.08] p-5 text-left transition-colors hover:border-foreground/40 hover:bg-black/[.02] dark:border-white/[.145] dark:hover:bg-white/[.04]"
+                className="glass rounded-[22px] p-6 text-left transition-transform hover:-translate-y-0.5"
+                style={{ borderColor: hexA(d.color, 0.2) }}
               >
-                <div className="font-medium">{d.label}</div>
-                <div className="mt-0.5 text-sm text-zinc-500">{d.blurb}</div>
+                <div className="flex items-center gap-3">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
+                  <span className="font-display text-2xl font-light">{d.label}</span>
+                  <span
+                    className="ml-auto rounded-full px-2.5 py-0.5 font-label text-[0.65rem] uppercase tracking-[0.15em]"
+                    style={{ color: d.color, background: hexA(d.color, 0.12), border: `1px solid ${hexA(d.color, 0.3)}` }}
+                  >
+                    {d.criteria} criteria
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-muted">{d.blurb}</p>
+                <p className="mt-3 font-display text-lg font-light italic text-faint">“{d.sample}”</p>
               </button>
             ))}
           </div>
@@ -183,25 +245,34 @@ export default function PracticePage() {
       )}
 
       {step === "duration" && (
-        <section>
-          <h1 className="text-2xl font-semibold tracking-tight">How long?</h1>
-          <p className="mt-1 text-sm text-zinc-500">Pick your speaking time. We&apos;ll then give you a random topic.</p>
-          <div className="mt-6 grid grid-cols-2 gap-3">
+        <section className="animate-fade-up text-center">
+          <h1 className="font-display text-4xl font-light tracking-tight">How long?</h1>
+          <p className="mt-2 text-sm text-muted">Pick your speaking time. We&apos;ll then give you a random topic.</p>
+          <div className="mt-8 grid grid-cols-2 gap-4">
             {[60, 120].map((sec) => (
               <button
                 key={sec}
                 onClick={() => chooseDuration(sec)}
                 disabled={loadingTopic}
-                className="rounded-xl border border-black/[.08] p-6 text-center transition-colors hover:border-foreground/40 hover:bg-black/[.02] disabled:opacity-50 dark:border-white/[.145] dark:hover:bg-white/[.04]"
+                className="glass rounded-[22px] p-8 transition-transform hover:-translate-y-0.5 disabled:opacity-50"
               >
-                <div className="text-2xl font-semibold">{sec === 60 ? "1 min" : "2 min"}</div>
-                <div className="mt-0.5 text-sm text-zinc-500">{sec} seconds</div>
+                <div className="font-display text-5xl font-light">{sec === 60 ? "1" : "2"}</div>
+                <div className="mt-1 font-label text-xs uppercase tracking-[0.2em] text-muted">
+                  {sec === 60 ? "minute" : "minutes"}
+                </div>
               </button>
             ))}
           </div>
-          {loadingTopic && <p className="mt-4 text-sm text-zinc-500">Picking a topic…</p>}
+          {loadingTopic && (
+            <div className="mt-8 flex items-center justify-center gap-3 text-sm text-muted">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-fg" />
+              Picking a topic…
+            </div>
+          )}
           {error && !loadingTopic && (
-            <p className="mt-4 text-sm text-red-600">{error} — pick a duration to try again.</p>
+            <p className="mt-6 text-sm" style={{ color: "#e0788a" }}>
+              {error} — pick a duration to try again.
+            </p>
           )}
         </section>
       )}
@@ -209,9 +280,9 @@ export default function PracticePage() {
       {step === "prep" && topic && <PrepStep topic={topic} onReady={() => setStep("record")} />}
 
       {step === "record" && topic && durationSec && (
-        <section className="flex flex-col items-center">
-          <p className="text-center text-sm text-zinc-500">Your topic</p>
-          <h2 className="mt-1 text-center text-xl font-medium">{topic.text}</h2>
+        <section className="animate-fade-up flex flex-col items-center">
+          <p className="eyebrow">Your topic</p>
+          <h2 className="mt-2 text-center font-display text-2xl font-light">{topic.text}</h2>
           <div className="mt-8 w-full">
             <AudioRecorder durationSec={durationSec} onComplete={runPipeline} />
           </div>
@@ -220,30 +291,45 @@ export default function PracticePage() {
 
       {step === "processing" &&
         (error ? (
-          <section className="flex flex-col items-center gap-4 py-16 text-center">
-            <p className="text-sm text-red-600">{error}</p>
+          <section className="flex flex-col items-center gap-5 py-20 text-center">
+            <p className="text-sm" style={{ color: "#e0788a" }}>{error}</p>
             <div className="flex gap-2">
               {canRetry && lastRec && (
                 <button
                   onClick={() => runPipeline(lastRec)}
-                  className="h-10 rounded-full bg-foreground px-5 text-sm font-medium text-background transition-colors hover:opacity-90"
+                  className="btn-accent h-11 rounded-full px-6 font-label text-xs uppercase tracking-[0.2em]"
                 >
                   Retry
                 </button>
               )}
               <button
                 onClick={restart}
-                className="h-10 rounded-full border border-black/[.12] px-5 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-white/[.2] dark:hover:bg-white/[.06]"
+                className="btn-ghost h-11 rounded-full px-6 font-label text-xs uppercase tracking-[0.2em]"
               >
                 Start over
               </button>
             </div>
           </section>
         ) : (
-          <section className="flex flex-col items-center py-16">
-            <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-300 border-t-foreground" />
-            <p className="mt-4 text-sm text-zinc-500">{STAGE_LABEL[stage]}</p>
-            <p className="mt-1 text-xs text-zinc-400">Please keep this tab open.</p>
+          <section className="flex flex-col items-center py-20">
+            <div className="h-12 w-12 animate-spin rounded-full border-2 border-white/15 border-t-[#dc94ab]" />
+            <p className="mt-6 font-display text-xl font-light">{STAGE_LABEL[stage]}</p>
+            <div className="mt-4 flex gap-2">
+              {STAGE_ORDER.map((s, i) => {
+                const activeIdx = STAGE_ORDER.indexOf(stage);
+                const filled = i <= activeIdx;
+                return (
+                  <span
+                    key={s}
+                    className="h-1.5 w-1.5 rounded-full transition-colors"
+                    style={{ background: filled ? "#dc94ab" : "rgba(255,255,255,0.15)" }}
+                  />
+                );
+              })}
+            </div>
+            <p className="mt-4 font-label text-[0.7rem] uppercase tracking-[0.15em] text-faint">
+              Please keep this tab open
+            </p>
           </section>
         ))}
     </main>
@@ -263,16 +349,16 @@ function PrepStep({ topic, onReady }: { topic: Topic; onReady: () => void }) {
   }, [secondsLeft, onReady]);
 
   return (
-    <section className="flex flex-col items-center text-center">
-      <p className="text-sm text-zinc-500">Get ready — recording starts in</p>
-      <div className="mt-2 text-5xl font-semibold tabular-nums">{secondsLeft}</div>
-      <div className="mt-8 w-full rounded-xl border border-black/[.08] p-6 dark:border-white/[.145]">
-        <p className="text-xs uppercase tracking-wide text-zinc-400">Your topic</p>
-        <h2 className="mt-2 text-xl font-medium">{topic.text}</h2>
+    <section className="animate-fade-up flex flex-col items-center text-center">
+      <p className="eyebrow">Recording starts automatically in</p>
+      <div className="mt-3 font-display text-7xl font-light tabular-nums">{secondsLeft}</div>
+      <div className="glass mt-10 w-full rounded-[22px] p-6">
+        <p className="eyebrow">Your topic</p>
+        <h2 className="mt-2 font-display text-2xl font-light">{topic.text}</h2>
       </div>
       <button
         onClick={onReady}
-        className="mt-6 h-11 rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors hover:opacity-90"
+        className="btn-accent mt-8 h-12 rounded-full px-8 font-label text-xs uppercase tracking-[0.2em]"
       >
         I&apos;m ready — start now
       </button>
