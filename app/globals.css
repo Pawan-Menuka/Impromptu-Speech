@@ -112,6 +112,15 @@ body {
   color: rgba(240, 200, 190, 0.75);
 }
 
+/* Landing overlay text — opacity/transform driven imperatively per-frame from
+   the scroll-scrub progress (see CinematicLanding). Hidden by default so
+   nothing flashes before JS takes over. */
+.overlay-content {
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity, transform;
+}
+
 /* Ambient background glows (fixed, behind everything) */
 .ambient {
   position: fixed;

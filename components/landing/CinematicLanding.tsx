@@ -9,6 +9,10 @@ const ANCHORS = [0, 47, 93, 130, 177];
 const SLUGS = ["intro", "listen", "feedback", "progress", "record"];
 const DOT_LABELS = ["Intro", "While you speak", "After you finish", "Over time", "Record"];
 
+// Baseline translateY per overlay (the intro is nudged down so eyes clear the
+// headline). The text ramp adds to this.
+const BASE_TY = ["7vh", "0px", "0px", "0px", "0px"];
+
 function frameUrl(i: number): string {
   return `/frames/frame_${String(i + 1).padStart(3, "0")}.jpg`;
 }
@@ -18,6 +22,11 @@ function easeInOutCubic(t: number): number {
 // Softer sine ease-in-out, used only for the gentle handoff into the mic frame.
 function easeInOutSine(t: number): number {
   return 0.5 - 0.5 * Math.cos(Math.PI * t);
+}
+// Clamped linear ramp: 0 below `a`, 1 above `b`.
+function ramp(p: number, a: number, b: number): number {
+  if (b <= a) return p >= b ? 1 : 0;
+  return Math.max(0, Math.min(1, (p - a) / (b - a)));
 }
 // Deterministic pseudo-random in [0,1) — keeps petal generation pure.
 function pseudo(seed: number): number {
@@ -54,12 +63,10 @@ export function CinematicLanding() {
   const wheelAccumRef = useRef(0);
   const checkpointRef = useRef(0);
   const reducedRef = useRef(false);
-  const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Overlay text nodes, driven imperatively (opacity + translateY) from progress.
+  const overlayRefs = useRef<Array<HTMLDivElement | null>>([null, null, null, null, null]);
 
   const [checkpoint, setCheckpoint] = useState(0);
-  // Which overlay's text is shown. Lags `checkpoint` so a checkpoint's text
-  // only fades in after its frame has finished gliding into view.
-  const [activeOverlay, setActiveOverlay] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [loadPct, setLoadPct] = useState(0);
   const [reduced, setReduced] = useState(false);
@@ -70,6 +77,15 @@ export function CinematicLanding() {
   useEffect(() => {
     reducedRef.current = reduced;
   }, [reduced]);
+
+  // Imperatively set an overlay's opacity + translateY + interactivity.
+  const applyOverlay = useCallback((i: number, opacity: number, ty: number, interactive: boolean) => {
+    const el = overlayRefs.current[i];
+    if (!el) return;
+    el.style.opacity = String(opacity);
+    el.style.transform = `translateY(calc(${BASE_TY[i]} + ${ty}px))`;
+    el.style.pointerEvents = interactive ? "auto" : "none";
+  }, []);
 
   const draw = useCallback((idx: number) => {
     const canvas = canvasRef.current;
@@ -145,6 +161,12 @@ export function CinematicLanding() {
     };
   }, [draw]);
 
+  // Initialize overlays: intro visible, the rest hidden.
+  useEffect(() => {
+    applyOverlay(0, 1, 0, true);
+    for (let i = 1; i < 5; i++) applyOverlay(i, 0, 0, false);
+  }, [applyOverlay]);
+
   // Canvas sizing (DPR-aware) + redraw on resize.
   useEffect(() => {
     const resize = () => {
@@ -168,7 +190,6 @@ export function CinematicLanding() {
   useEffect(
     () => () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
     },
     [],
   );
@@ -176,6 +197,7 @@ export function CinematicLanding() {
   const glideTo = useCallback(
     (target: number) => {
       const t = Math.max(0, Math.min(4, target));
+      const prev = checkpointRef.current;
       checkpointRef.current = t;
       setCheckpoint(t);
       window.history.replaceState(null, "", `#${SLUGS[t]}`);
@@ -186,13 +208,6 @@ export function CinematicLanding() {
       const toRecord = t === 4;
       const dur = reducedRef.current ? 0 : toRecord ? 2400 : 1400;
       const ease = toRecord ? easeInOutSine : easeInOutCubic;
-
-      // Hide any text during transit; reveal the target's text just after the
-      // frame settles.
-      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
-      setActiveOverlay(-1);
-      overlayTimerRef.current = setTimeout(() => setActiveOverlay(t), dur + 180);
-
       const start = performance.now();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
@@ -200,11 +215,24 @@ export function CinematicLanding() {
         const p = dur === 0 ? 1 : Math.min(1, (now - start) / dur);
         playheadRef.current = from + (to - from) * ease(p);
         draw(Math.round(playheadRef.current));
-        if (p < 1) rafRef.current = requestAnimationFrame(tick);
+
+        // Same progress drives the text: the outgoing caption clears out early,
+        // and the incoming caption ramps opacity 0→1 + slides 24px→0 only AFTER
+        // the background has essentially settled (progress 0.17 → 0.24).
+        if (prev !== t) applyOverlay(prev, 1 - ramp(p, 0, 0.1), 0, false);
+        const reveal = ramp(p, 0.17, 0.24);
+        applyOverlay(t, reveal, (1 - reveal) * 24, reveal > 0.5);
+
+        if (p < 1) {
+          rafRef.current = requestAnimationFrame(tick);
+        } else {
+          if (prev !== t) applyOverlay(prev, 0, 0, false);
+          applyOverlay(t, 1, 0, true);
+        }
       };
       rafRef.current = requestAnimationFrame(tick);
     },
-    [draw],
+    [draw, applyOverlay],
   );
 
   const step = useCallback(
@@ -285,10 +313,15 @@ export function CinematicLanding() {
     });
   }, []);
 
+  const setOverlayRef = (i: number) => (el: HTMLDivElement | null) => {
+    // Ref callbacks run at commit, not during render — safe to assign here.
+    // eslint-disable-next-line react-hooks/refs
+    overlayRefs.current[i] = el;
+  };
+
   return (
     <div ref={containerRef} className="fixed inset-0 overflow-hidden bg-bg" style={{ touchAction: "none" }}>
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
-      {/* subtle top scrim for header legibility */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/45 to-transparent" />
 
       {/* Loader */}
@@ -395,8 +428,8 @@ export function CinematicLanding() {
         ))}
       </div>
 
-      {/* Overlay 0 — Intro (nudged down so her eyes clear the headline) */}
-      <Overlay active={activeOverlay === 0} className="inset-0 flex translate-y-[7vh] flex-col items-center justify-center px-6 text-center">
+      {/* Overlay 0 — Intro */}
+      <Overlay setRef={setOverlayRef(0)} className="inset-0 flex flex-col items-center justify-center px-6 text-center">
         <span className="frost-pill mb-6 inline-flex items-center gap-2 rounded-full px-4 py-[7px] text-[12px] uppercase tracking-[0.34em]" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: "linear-gradient(135deg,#f0c3b6,#dc94ab)", boxShadow: "0 0 8px rgba(224,150,150,0.8)" }} />
           Impromptu Speech Trainer
@@ -425,7 +458,7 @@ export function CinematicLanding() {
       </Overlay>
 
       {/* Overlay 1 — While you speak */}
-      <Overlay active={activeOverlay === 1} className="inset-0 flex items-center justify-start px-6 sm:px-[7vw] lg:px-[120px]">
+      <Overlay setRef={setOverlayRef(1)} className="inset-0 flex items-center justify-start px-6 sm:px-[7vw] lg:px-[120px]">
         <Editorial>
           <CheckpointHead n="01" kicker="While you speak" />
           <Headline first="Every word," second="measured." />
@@ -439,7 +472,7 @@ export function CinematicLanding() {
       </Overlay>
 
       {/* Overlay 2 — After you finish */}
-      <Overlay active={activeOverlay === 2} className="inset-0 flex items-start justify-start px-6 pt-24 sm:px-[7vw] sm:pt-[13vh] lg:px-[120px]">
+      <Overlay setRef={setOverlayRef(2)} className="inset-0 flex items-start justify-start px-6 pt-24 sm:px-[7vw] sm:pt-[13vh] lg:px-[120px]">
         <Editorial>
           <CheckpointHead n="02" kicker="After you finish" />
           <Headline first="Feedback that" second="listens." />
@@ -470,7 +503,7 @@ export function CinematicLanding() {
       </Overlay>
 
       {/* Overlay 3 — Over time */}
-      <Overlay active={activeOverlay === 3} className="inset-0 flex items-center justify-start px-6 pb-[20vh] sm:px-[7vw] lg:px-[120px]">
+      <Overlay setRef={setOverlayRef(3)} className="inset-0 flex items-center justify-start px-6 pb-[20vh] sm:px-[7vw] lg:px-[120px]">
         <Editorial>
           <CheckpointHead n="03" kicker="Over time" />
           <Headline first="Watch yourself" second="grow." />
@@ -483,7 +516,7 @@ export function CinematicLanding() {
       </Overlay>
 
       {/* Overlay 4 — Mic payoff */}
-      <Overlay active={activeOverlay === 4} className="inset-0 flex flex-col items-center justify-end px-6 pb-[7vh] text-center">
+      <Overlay setRef={setOverlayRef(4)} className="inset-0 flex flex-col items-center justify-end px-6 pb-[7vh] text-center">
         <div
           aria-hidden
           className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2"
@@ -520,27 +553,25 @@ export function CinematicLanding() {
   );
 }
 
+// Positioning wrapper for an overlay. Opacity/transform are NOT set here — they
+// are driven imperatively via the forwarded ref (see applyOverlay). The
+// `.overlay-content` class hides it until JS takes over.
 function Overlay({
-  active,
+  setRef,
   className,
   children,
 }: {
-  active: boolean;
+  setRef: (el: HTMLDivElement | null) => void;
   className: string;
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className={`absolute z-20 transition-opacity duration-[180ms] ${className}`}
-      style={{ opacity: active ? 1 : 0, pointerEvents: active ? "auto" : "none" }}
-    >
+    <div ref={setRef} className={`overlay-content absolute z-20 ${className}`}>
       {children}
     </div>
   );
 }
 
-// Editorial text block with a radial dark glow behind it for legibility over
-// the busy floral frames.
 function Editorial({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative max-w-[480px]">
