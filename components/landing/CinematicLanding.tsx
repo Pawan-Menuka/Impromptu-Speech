@@ -23,6 +23,9 @@ function easeInOutCubic(t: number): number {
 function easeInOutSine(t: number): number {
   return 0.5 - 0.5 * Math.cos(Math.PI * t);
 }
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
 // Clamped linear ramp: 0 below `a`, 1 above `b`.
 function ramp(p: number, a: number, b: number): number {
   if (b <= a) return p >= b ? 1 : 0;
@@ -59,6 +62,7 @@ export function CinematicLanding() {
   const imagesRef = useRef<HTMLImageElement[]>([]);
   const playheadRef = useRef(0);
   const rafRef = useRef<number | null>(null);
+  const textRafRef = useRef<number | null>(null);
   const cooldownRef = useRef(false);
   const wheelAccumRef = useRef(0);
   const checkpointRef = useRef(0);
@@ -190,8 +194,29 @@ export function CinematicLanding() {
   useEffect(
     () => () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (textRafRef.current) cancelAnimationFrame(textRafRef.current);
     },
     [],
+  );
+
+  // Ramp the target caption in AFTER its frame has landed: a brief beat, then
+  // opacity 0→1 + translateY 24px→0. Driven by its own progress (not a CSS
+  // transition) so it always follows the image.
+  const revealText = useCallback(
+    (i: number) => {
+      if (textRafRef.current) cancelAnimationFrame(textRafRef.current);
+      const start = performance.now();
+      const delay = 120; // brief beat after the frame settles
+      const dur = 340;
+      const tick = (now: number) => {
+        const raw = (now - start - delay) / dur;
+        const e = raw <= 0 ? 0 : raw >= 1 ? 1 : easeOutCubic(raw);
+        applyOverlay(i, e, (1 - e) * 24, e > 0.5);
+        if (raw < 1) textRafRef.current = requestAnimationFrame(tick);
+      };
+      textRafRef.current = requestAnimationFrame(tick);
+    },
+    [applyOverlay],
   );
 
   const glideTo = useCallback(
@@ -210,29 +235,31 @@ export function CinematicLanding() {
       const ease = toRecord ? easeInOutSine : easeInOutCubic;
       const start = performance.now();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (textRafRef.current) cancelAnimationFrame(textRafRef.current);
+
+      // Hide the incoming caption (below + transparent) until the frame lands.
+      applyOverlay(t, 0, 24, false);
 
       const tick = (now: number) => {
         const p = dur === 0 ? 1 : Math.min(1, (now - start) / dur);
         playheadRef.current = from + (to - from) * ease(p);
         draw(Math.round(playheadRef.current));
 
-        // Same progress drives the text: the outgoing caption clears out early,
-        // and the incoming caption ramps opacity 0→1 + slides 24px→0 only AFTER
-        // the background has essentially settled (progress 0.17 → 0.24).
-        if (prev !== t) applyOverlay(prev, 1 - ramp(p, 0, 0.1), 0, false);
-        const reveal = ramp(p, 0.17, 0.24);
-        applyOverlay(t, reveal, (1 - reveal) * 24, reveal > 0.5);
+        // Outgoing caption clears out immediately as we start moving.
+        if (prev !== t) applyOverlay(prev, 1 - ramp(p, 0, 0.12), 0, false);
 
         if (p < 1) {
           rafRef.current = requestAnimationFrame(tick);
         } else {
           if (prev !== t) applyOverlay(prev, 0, 0, false);
-          applyOverlay(t, 1, 0, true);
+          // Frame has landed — now reveal the caption.
+          if (reducedRef.current) applyOverlay(t, 1, 0, true);
+          else revealText(t);
         }
       };
       rafRef.current = requestAnimationFrame(tick);
     },
-    [draw, applyOverlay],
+    [draw, applyOverlay, revealText],
   );
 
   const step = useCallback(
