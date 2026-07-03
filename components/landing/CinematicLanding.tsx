@@ -376,8 +376,8 @@ export function CinematicLanding() {
         ))}
       </div>
 
-      {/* Overlay 0 — Intro */}
-      <Overlay active={checkpoint === 0} className="inset-0 flex flex-col items-center justify-center px-6 text-center">
+      {/* Overlay 0 — Intro (nudged down so her eyes clear the headline) */}
+      <Overlay active={checkpoint === 0} className="inset-0 flex translate-y-[7vh] flex-col items-center justify-center px-6 text-center">
         <span className="frost-pill mb-6 inline-flex items-center gap-2 rounded-full px-4 py-[7px] text-[12px] uppercase tracking-[0.34em]" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: "linear-gradient(135deg,#f0c3b6,#dc94ab)", boxShadow: "0 0 8px rgba(224,150,150,0.8)" }} />
           Impromptu Speech Trainer
