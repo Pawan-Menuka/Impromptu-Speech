@@ -15,6 +15,10 @@ function frameUrl(i: number): string {
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
+// Softer sine ease-in-out, used only for the gentle handoff into the mic frame.
+function easeInOutSine(t: number): number {
+  return 0.5 - 0.5 * Math.cos(Math.PI * t);
+}
 // Deterministic pseudo-random in [0,1) — keeps petal generation pure.
 function pseudo(seed: number): number {
   const x = Math.sin(seed * 127.1) * 43758.5453;
@@ -166,13 +170,16 @@ export function CinematicLanding() {
 
       const from = playheadRef.current;
       const to = ANCHORS[t];
-      const dur = reducedRef.current ? 0 : t === 4 ? 2400 : 1400;
+      // Gentler, slower glide into the final mic frame; snappier cubic elsewhere.
+      const toRecord = t === 4;
+      const dur = reducedRef.current ? 0 : toRecord ? 2400 : 1400;
+      const ease = toRecord ? easeInOutSine : easeInOutCubic;
       const start = performance.now();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
       const tick = (now: number) => {
         const p = dur === 0 ? 1 : Math.min(1, (now - start) / dur);
-        playheadRef.current = from + (to - from) * easeInOutCubic(p);
+        playheadRef.current = from + (to - from) * ease(p);
         draw(Math.round(playheadRef.current));
         if (p < 1) rafRef.current = requestAnimationFrame(tick);
       };
@@ -458,7 +465,18 @@ export function CinematicLanding() {
 
       {/* Overlay 4 — Mic payoff */}
       <Overlay active={checkpoint === 4} className="inset-0 flex flex-col items-center justify-end px-6 pb-[7vh] text-center">
-        <p className="font-display text-2xl font-normal italic leading-[1.3] text-[#fdfaf8] sm:text-3xl" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 2px 30px rgba(0,0,0,0.9)" }}>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2"
+          style={{
+            width: "min(760px, 100vw)",
+            height: "58vh",
+            background:
+              "radial-gradient(ellipse at 50% 66%,rgba(11,8,9,0.88) 0%,rgba(11,8,9,0.6) 50%,transparent 78%)",
+            filter: "blur(10px)",
+          }}
+        />
+        <p className="relative font-display text-2xl font-normal italic leading-[1.3] text-[#fdfaf8] sm:text-3xl" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 2px 30px rgba(0,0,0,0.9)" }}>
           The stage is quiet. The mic is yours.
         </p>
         <button
@@ -469,8 +487,8 @@ export function CinematicLanding() {
         >
           <span className="h-[34px] w-[34px] rounded-full" style={{ background: "linear-gradient(135deg,#ecc0aa,#dc7a8e)", boxShadow: "0 0 18px rgba(220,120,138,0.7)" }} />
         </button>
-        <span className="mt-[18px] font-label text-[13px] uppercase tracking-[0.16em] text-fg/90">Start your speech</span>
-        <div className="mt-6 flex flex-col items-center gap-[7px]">
+        <span className="relative mt-[18px] font-label text-[13px] uppercase tracking-[0.16em] text-fg/90">Start your speech</span>
+        <div className="relative mt-6 flex flex-col items-center gap-[7px]">
           <p className="font-display text-[18px] font-light italic text-fg/[.72]">
             “I stopped dreading being called on in meetings.”
           </p>
