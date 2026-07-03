@@ -195,8 +195,8 @@ body {
 .record-pulse::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -1px;
   border-radius: 9999px;
-  border: 2px solid #dc94ab;
+  border: 1px solid rgba(226, 170, 160, 0.6);
   animation: recordPulse 2.4s ease-out infinite;
 }
