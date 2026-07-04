@@ -5,8 +5,13 @@ loadEnv({ path: ".env.local" });
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { neonConfig } from "@neondatabase/serverless";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import ws from "ws";
 import { PrismaClient, type Difficulty } from "../generated/prisma/client";
+
+neonConfig.webSocketConstructor = ws;
+neonConfig.poolQueryViaFetch = true;
 
 type TopicSeed = { text: string; difficulty: Difficulty; category?: string };
 
@@ -15,7 +20,7 @@ const topics: TopicSeed[] = JSON.parse(
 );
 
 async function main() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL ?? "" });
   const prisma = new PrismaClient({ adapter });
 
   // Deterministic ids per (difficulty, index) make re-seeding idempotent and
