@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main, Develop]
+  pull_request:
+    branches: [main, Develop]
+
+# Cancel superseded runs on the same branch/PR.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck · Lint · Build
+    runs-on: ubuntu-latest
+
+    # Build-time placeholders only — CI never talks to a real service.
+    # Prisma just needs a syntactically valid URL to generate its client, and
+    # Clerk just needs a well-formed key to prerender pages. All real values
+    # live in Vercel's environment variables, never in this repo.
+    env:
+      DATABASE_URL: postgresql://user:pass@localhost:5432/db
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk
+      CLERK_SECRET_KEY: sk_test_ci_placeholder_not_a_real_key
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `postinstall` runs `prisma generate` (the client is gitignored).
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
