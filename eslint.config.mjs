@@ -14,6 +14,13 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Prisma 7 generated client — not our source.
     "generated/**",
+    // `.next/**` above is top-level only; git worktrees under .claude/ carry
+    // their own build output, which otherwise floods local lint with errors
+    // that CI never sees (a fresh checkout has no worktrees).
+    "**/.next/**",
+    ".claude/**",
+    // Untracked design reference (hand-authored HTML/JS, not app source).
+    "UI/**",
   ]),
 ]);
 

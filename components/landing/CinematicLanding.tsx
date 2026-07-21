@@ -42,6 +42,11 @@ function pseudo(seed: number): number {
   const x = Math.sin(seed * 127.1) * 43758.5453;
   return x - Math.floor(x);
 }
+// Keeps inline-style floats short enough that the server string and the
+// browser's re-serialized CSSOM value agree (see the petal note below).
+function round(n: number): number {
+  return Math.round(n * 1000) / 1000;
+}
 
 const PETAL_COLORS = [
   ["#f6cdd3", "#dc94ab"],
@@ -334,13 +339,17 @@ export function CinematicLanding() {
   const petals = useMemo(() => {
     return Array.from({ length: 26 }, (_, i) => {
       const [a, b] = PETAL_COLORS[i % PETAL_COLORS.length];
+      // Rounded on purpose: the browser's CSSOM re-serializes inline-style
+      // floats at ~6 significant digits, so full-precision values make React's
+      // hydration check see a string mismatch and re-render the whole subtree
+      // on the client. 3dp is far below a visible pixel/second.
       return {
         id: i,
-        left: pseudo(i + 2) * 100,
-        size: 9 + pseudo(i + 1) * 15,
-        fall: 11 + pseudo(i + 3) * 12,
-        sway: 3 + pseudo(i + 4) * 4,
-        delay: -pseudo(i + 5) * 20,
+        left: round(pseudo(i + 2) * 100),
+        size: round(9 + pseudo(i + 1) * 15),
+        fall: round(11 + pseudo(i + 3) * 12),
+        sway: round(3 + pseudo(i + 4) * 4),
+        delay: round(-pseudo(i + 5) * 20),
         grad: `linear-gradient(135deg, ${a}, ${b})`,
       };
     });
