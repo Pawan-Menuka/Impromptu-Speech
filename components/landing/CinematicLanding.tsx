@@ -13,8 +13,14 @@ const DOT_LABELS = ["Intro", "While you speak", "After you finish", "Over time",
 // headline). The text ramp adds to this.
 const BASE_TY = ["7vh", "0px", "0px", "0px", "0px"];
 
+// Where the 178-frame sequence is served from. Defaults to the local
+// `public/frames` folder; in production set NEXT_PUBLIC_FRAME_BASE_URL to the
+// R2/CDN base (e.g. https://cdn.example.com/frames) so these ~178 requests per
+// visit don't count against the Vercel plan.
+const FRAME_BASE = (process.env.NEXT_PUBLIC_FRAME_BASE_URL ?? "/frames").replace(/\/+$/, "");
+
 function frameUrl(i: number): string {
-  return `/frames/frame_${String(i + 1).padStart(3, "0")}.jpg`;
+  return `${FRAME_BASE}/frame_${String(i + 1).padStart(3, "0")}.jpg`;
 }
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;

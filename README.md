@@ -83,6 +83,23 @@ prisma migrate deploy && next build
 | `ANTHROPIC_API_KEY` and/or `GEMINI_API_KEY` | Whichever provider is selected |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL` | Audio storage |
 
+### Landing frames on Cloudflare R2 (recommended)
+
+The landing scroll-scrub loads a **178-frame image sequence**, i.e. ~178 requests
+per visit — easily the biggest consumer of a Vercel free-tier request budget.
+Serve them from R2 instead:
+
+```bash
+npm run frames:upload        # uploads public/frames/*.jpg to r2://<bucket>/frames/
+```
+
+Then set `NEXT_PUBLIC_FRAME_BASE_URL` (Vercel → Environment Variables) to the
+public base, e.g. `https://<your-r2-domain>/frames`. Unset, the app falls back to
+the local `public/frames` folder, so local dev keeps working offline.
+
+> Cloudflare's `*.r2.dev` URLs are rate-limited and **not intended for
+> production traffic** — attach a custom domain to the bucket if you have one.
+
 ### One-time production steps
 
 - **Seed the topic bank** against the production database:
