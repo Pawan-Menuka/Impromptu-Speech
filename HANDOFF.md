@@ -51,7 +51,8 @@ Cloudflare R2 (audio + landing frames) · Tailwind v4 · Vercel (target).
 | Phase 8 *visual* polish | ✅ superseded by the reskin |
 | Full UI reskin R1–R7 (design system + all screens + cinematic landing) | ✅ |
 | CI (GitHub Actions) | ✅ green |
-| Phase 9 deploy | ⏳ **in progress — see §6** |
+| Landing frames on R2 (upload + local verify) | ✅ see §6a |
+| Phase 9 deploy — Vercel project | ⏳ **not created yet — see §6** |
 
 The whole pipeline works end-to-end in the browser: record → upload (R2) →
 transcribe (AssemblyAI) → rate (Gemini) → save → results page.
@@ -125,28 +126,41 @@ cd209e1 Expand topic bank to 50 per difficulty (150 total)
 The user is deploying to **Vercel**, with the **landing frames on Cloudflare R2**
 to avoid burning Vercel's free-tier request budget (~178 image requests/visit).
 
-### 6a. Move landing frames to R2 — code is DONE, these steps are pending
+### 6a. Move landing frames to R2 — ✅ DONE locally, prod steps remain
 
-Code already supports it: `NEXT_PUBLIC_FRAME_BASE_URL` (falls back to local
-`/frames`), plus an uploader script. Remaining steps, **in this order**:
-
-1. `npm run frames:upload` — uploads `public/frames/*.jpg` → `r2://<bucket>/frames/`
-   with `image/jpeg` + `Cache-Control: public, max-age=31536000, immutable`.
-2. Verify `https://<r2-public-url>/frames/frame_001.jpg` loads in a browser.
-3. Set `NEXT_PUBLIC_FRAME_BASE_URL=https://<r2-public-url>/frames` in **Vercel**
-   (Production + Preview). It's `NEXT_PUBLIC_` → inlined at build → **redeploy required**.
-4. Test locally (add to `.env.local`, restart dev, check Network tab shows r2.dev).
-5. Deploy and confirm frames come from R2, not the Vercel domain.
-6. **Only after that works**, stop shipping them to Vercel:
+1. ✅ `npm run frames:upload` — all **178/178** uploaded to
+   `r2://impromptu-speech-audio/frames/`. (An earlier attempt "didn't work";
+   re-running from the **main root** succeeded — almost certainly it was run from
+   a `.claude/worktrees/*` copy, which has no `node_modules`.)
+2. ✅ Verified serving: `frame_001/090/178.jpg` → `200`, `image/jpeg`,
+   `Cache-Control: public, max-age=31536000, immutable`.
+3. ⏳ Set `NEXT_PUBLIC_FRAME_BASE_URL` in **Vercel** (Production + Preview) — see 6b.
+   It's `NEXT_PUBLIC_` → inlined at build → **redeploy required** to change it.
+4. ✅ Verified locally: added to `.env.local`, all **178/178** frame requests go to
+   `pub-18efac271c2a45be95ad3fe47554617a.r2.dev`, **0** to localhost. Landing renders.
+5. ⏳ Deploy and confirm frames come from R2, not the Vercel domain.
+6. ⏳ **Only after step 5 passes**, stop shipping them to Vercel (they're currently
+   tracked — **21 MB / 178 files**):
    ```bash
    git rm -r --cached public/frames
    echo "/public/frames" >> .gitignore
    ```
    (Local copy stays so dev works offline.)
 
-> ⚠️ `*.r2.dev` URLs are **rate-limited and not intended for production**.
-> If the user has a domain, attach a **custom domain** to the R2 bucket and use
-> that as the base URL instead.
+**Frame URL decision (2026-07-21):** ship on `pub-…r2.dev/frames` for now.
+A custom domain was considered and **deferred**: R2 custom domains require the
+zone to be hosted on **Cloudflare**, but `pawanmenuka.com` currently uses
+**Namecheap** nameservers (`dns1/dns2.registrar-servers.com`). Moving it is a
+nameserver change + re-creating every DNS record — not worth blocking launch.
+Swapping later is one env var + a redeploy.
+
+> ⚠️ `*.r2.dev` is rate-limited and not intended for production traffic. Frames
+> are immutable-cached, so repeat visits barely touch it — fine for a portfolio
+> demo, revisit if traffic grows.
+
+> Note: the frames need **no R2 CORS rule** — they're plain `<img>` loads, and
+> the canvas only ever calls `drawImage` (never `getImageData`/`toDataURL`), so
+> cross-origin tainting is harmless. R2 CORS matters only for the **audio PUT**.
 
 ### 6b. Vercel deployment checklist
 
@@ -156,11 +170,18 @@ Code already supports it: `NEXT_PUBLIC_FRAME_BASE_URL` (falls back to local
 - **Env vars to set** (see README table): `DATABASE_URL`, Clerk keys + URL vars,
   `ASSEMBLYAI_API_KEY`, `RATING_PROVIDER`, `GEMINI_API_KEY` and/or
   `ANTHROPIC_API_KEY`, all `R2_*`, and `NEXT_PUBLIC_FRAME_BASE_URL`.
+- **Target domain: `impromptu.pawanmenuka.com`** (not yet created — does not
+  resolve). Registrar/DNS is **Namecheap**, so the `CNAME` for it must be added
+  in Namecheap's Advanced DNS, pointing at Vercel.
 - **One-time prod steps:**
   - Seed prod DB: `DATABASE_URL="<prod>" npm run db:seed` (150 topics).
-  - **Clerk**: current keys are `pk_test_`/`sk_test_` = a *development* instance.
-    A live domain needs a **production instance** — this is the most common trip-up.
-  - **R2 CORS**: add the production domain (currently only `localhost:3000`).
+  - **Clerk**: current keys are `pk_test_`/`sk_test_` = a *development* instance
+    (confirmed). A live domain needs a **production instance** → new
+    `pk_live_`/`sk_live_` keys **plus Clerk's own CNAME records in Namecheap**.
+    This is the most common trip-up and the longest pole — start it first.
+  - **R2 CORS**: add `https://impromptu.pawanmenuka.com` (and the
+    `*.vercel.app` preview domain) to the bucket's allowed origins — currently
+    only `localhost:3000`. Without this the **audio upload PUT fails in prod**.
 
 ### 6c. Then: Phase 9 portfolio polish (not started)
 
