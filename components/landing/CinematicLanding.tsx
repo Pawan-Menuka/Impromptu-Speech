@@ -20,7 +20,7 @@ const BASE_TY = ["7vh", "0px", "0px", "0px", "0px"];
 const FRAME_BASE = (process.env.NEXT_PUBLIC_FRAME_BASE_URL ?? "/frames").replace(/\/+$/, "");
 
 function frameUrl(i: number): string {
-  return `${FRAME_BASE}/frame_${String(i + 1).padStart(3, "0")}.jpg`;
+  return `${FRAME_BASE}/frame_${String(i + 1).padStart(3, "0")}.webp`;
 }
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
