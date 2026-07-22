@@ -106,7 +106,11 @@ the local `public/frames` folder, so local dev keeps working offline.
   `DATABASE_URL="<prod-url>" npm run db:seed`
 - **Clerk**: create a *production* instance and add your Vercel domain (test
   keys only work on development instances).
-- **R2**: add your production domain to the bucket's CORS allowed origins.
+- **R2**: no CORS rule is needed. The browser never talks to R2 directly —
+  uploads go through [app/api/upload/route.ts](app/api/upload/route.ts)
+  server-side (keeping R2 credentials off the client), transcription hands the
+  URL to AssemblyAI server-side, and both audio playback and the landing frames
+  are plain `<audio src>` / `<img>` loads, which aren't CORS-gated.
 
 ## Architecture notes
 

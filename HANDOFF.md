@@ -52,7 +52,8 @@ Cloudflare R2 (audio + landing frames) · Tailwind v4 · Vercel (target).
 | Full UI reskin R1–R7 (design system + all screens + cinematic landing) | ✅ |
 | CI (GitHub Actions) | ✅ green |
 | Landing frames on R2 (upload + local verify) | ✅ see §6a |
-| Phase 9 deploy — Vercel project | ⏳ **not created yet — see §6** |
+| Domain DNS, Clerk prod instance (5/5), prod Neon branch | ✅ see §6b |
+| Phase 9 deploy — **first Vercel deploy not yet run** | ⏳ **see §6b** |
 
 The whole pipeline works end-to-end in the browser: record → upload (R2) →
 transcribe (AssemblyAI) → rate (Gemini) → save → results page.
@@ -160,7 +161,7 @@ Swapping later is one env var + a redeploy.
 
 > Note: the frames need **no R2 CORS rule** — they're plain `<img>` loads, and
 > the canvas only ever calls `drawImage` (never `getImageData`/`toDataURL`), so
-> cross-origin tainting is harmless. R2 CORS matters only for the **audio PUT**.
+> cross-origin tainting is harmless. **Nothing else needs CORS either** — see §6b.
 
 ### 6b. Vercel deployment checklist
 
@@ -170,18 +171,31 @@ Swapping later is one env var + a redeploy.
 - **Env vars to set** (see README table): `DATABASE_URL`, Clerk keys + URL vars,
   `ASSEMBLYAI_API_KEY`, `RATING_PROVIDER`, `GEMINI_API_KEY` and/or
   `ANTHROPIC_API_KEY`, all `R2_*`, and `NEXT_PUBLIC_FRAME_BASE_URL`.
-- **Target domain: `impromptu.pawanmenuka.com`** (not yet created — does not
-  resolve). Registrar/DNS is **Namecheap**, so the `CNAME` for it must be added
-  in Namecheap's Advanced DNS, pointing at Vercel.
-- **One-time prod steps:**
-  - Seed prod DB: `DATABASE_URL="<prod>" npm run db:seed` (150 topics).
-  - **Clerk**: current keys are `pk_test_`/`sk_test_` = a *development* instance
-    (confirmed). A live domain needs a **production instance** → new
-    `pk_live_`/`sk_live_` keys **plus Clerk's own CNAME records in Namecheap**.
-    This is the most common trip-up and the longest pole — start it first.
-  - **R2 CORS**: add `https://impromptu.pawanmenuka.com` (and the
-    `*.vercel.app` preview domain) to the bucket's allowed origins — currently
-    only `localhost:3000`. Without this the **audio upload PUT fails in prod**.
+- **Domain: `impromptu.pawanmenuka.com`** — ✅ DNS live. Registrar/DNS is
+  **Namecheap** (BasicDNS). Six CNAMEs now exist under `impromptu`: five for
+  Clerk plus `impromptu` → `d29ca46f6289ffe7.vercel-dns-017.com` for Vercel.
+  Vercel reports "properly configured". The apex `@` redirect and `www`
+  parking-page records are unrelated defaults — leave them alone.
+- **Clerk: ✅ production instance created and verified 5/5.** Its keys are
+  `pk_live_`/`sk_live_` and belong in **Vercel only** — `.env.local` keeps the
+  `pk_test_`/`sk_test_` dev keys or local dev breaks. Google SSO was cloned in
+  but **disabled** for launch (production requires your own Google OAuth
+  credentials; dev used Clerk's shared ones). Re-enabling is a dashboard toggle,
+  no code change. Its redirect URI, for when you do:
+  `https://clerk.impromptu.pawanmenuka.com/v1/oauth_callback`
+- **Prod DB: ✅ separate Neon branch** `ep-round-queen-atjrmq1v-pooler…`
+  (dev stays on `ep-purple-mode-at8z4227…`). Created as a copy-on-write clone,
+  so **all 150 topics came across — no seeding needed**. It also inherited 4 test
+  sessions + 1 user; these are inert (the prod Clerk instance issues different
+  user ids, so nothing references them). Connection string lives in the
+  gitignored `.env.production.local`, used only for one-off admin commands.
+  The branch split exists so a local `npm run db:migrate` can't hit production.
+- **R2 CORS: NOT needed** — earlier drafts of this doc and the README said
+  otherwise; that was wrong and cost a detour. The browser never talks to R2:
+  uploads go through `app/api/upload/route.ts` **server-side** (deliberately, to
+  keep R2 credentials off the client), transcription passes the URL to
+  AssemblyAI server-side, and playback/frames are plain `<audio src>` / `<img>`
+  loads, which aren't CORS-gated.
 
 ### 6c. Then: Phase 9 portfolio polish (not started)
 
