@@ -36,6 +36,37 @@ const STEP_LABELS = ["Difficulty", "Duration", "Prepare", "Record"];
 // Below this many transcribed words we treat the attempt as "no real speech".
 const MIN_WORDS = 3;
 
+/**
+ * Reads an API response, tolerating a body that isn't JSON.
+ *
+ * Our routes always return JSON, but an unhandled server error or a platform
+ * timeout does not — it sends an empty body or an HTML error page. Calling
+ * `res.json()` before checking `res.ok` turns those into "Unexpected end of
+ * JSON input", replacing the real failure with a meaningless parser message.
+ * Reading the body defensively means the user always gets something
+ * actionable, and the HTTP status survives when there is no message at all.
+ */
+// Mirrors the `any` that `res.json()` itself returns, so call sites are unchanged.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function okJson(res: Response, fallback: string): Promise<any> {
+  const raw = await res.text();
+  let body: { error?: string } | null = null;
+  if (raw) {
+    try {
+      body = JSON.parse(raw) as { error?: string };
+    } catch {
+      body = null;
+    }
+  }
+  if (!res.ok) {
+    throw new Error(body?.error ?? `${fallback} (server error ${res.status})`);
+  }
+  if (!body) {
+    throw new Error(`${fallback} (empty response from server)`);
+  }
+  return body;
+}
+
 function extFor(mimeType: string): string {
   if (mimeType.includes("mp4")) return "mp4";
   if (mimeType.includes("ogg")) return "ogg";
@@ -119,8 +150,7 @@ export default function PracticePage() {
     setError(null);
     try {
       const res = await fetch(`/api/topics/random?difficulty=${difficulty}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Could not load a topic");
+      const data = await okJson(res, "Could not load a topic");
       setTopic(data);
       setStep("prep");
     } catch (e) {
@@ -145,8 +175,7 @@ export default function PracticePage() {
           new File([rec.blob], `recording.${extFor(rec.mimeType)}`, { type: rec.blob.type }),
         );
         const uploadRes = await fetch("/api/upload", { method: "POST", body: form });
-        const upload = await uploadRes.json();
-        if (!uploadRes.ok) throw new Error(upload.error ?? "Upload failed");
+        const upload = await okJson(uploadRes, "Upload failed");
 
         setStage("transcribing");
         const txRes = await fetch("/api/transcribe", {
@@ -154,8 +183,7 @@ export default function PracticePage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ audioUrl: upload.url }),
         });
-        const tx = await txRes.json();
-        if (!txRes.ok) throw new Error(tx.error ?? "Transcription failed");
+        const tx = await okJson(txRes, "Transcription failed");
 
         if (wordCount(tx.transcript ?? "") < MIN_WORDS) {
           setError("We couldn't detect enough speech. Please record again and speak clearly.");
@@ -175,8 +203,7 @@ export default function PracticePage() {
             durationSec: tx.durationSec,
           }),
         });
-        const rating = await rateRes.json();
-        if (!rateRes.ok) throw new Error(rating.error ?? "Rating failed");
+        const rating = await okJson(rateRes, "Rating failed");
 
         setStage("saving");
         const saveRes = await fetch("/api/sessions", {
@@ -195,8 +222,7 @@ export default function PracticePage() {
             tips: rating.tips,
           }),
         });
-        const saved = await saveRes.json();
-        if (!saveRes.ok) throw new Error(saved.error ?? "Could not save session");
+        const saved = await okJson(saveRes, "Could not save session");
 
         router.push(`/results/${saved.id}`);
       } catch (e) {
