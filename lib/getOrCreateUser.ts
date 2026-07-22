@@ -22,9 +22,30 @@ export async function getOrCreateUser() {
     `${userId}@placeholder.local`;
 
   // upsert guards against a race where two requests create the row concurrently.
-  return prisma.user.upsert({
-    where: { id: userId },
-    update: {},
-    create: { id: userId, email },
-  });
+  try {
+    return await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { id: userId, email },
+    });
+  } catch (err) {
+    // `email` is @unique, so creating a row can still fail when a *different*
+    // Clerk id already owns this address. That happens whenever the database
+    // has been cloned between Clerk instances (e.g. a production Neon branch
+    // copied from dev): same person, same email, a new id. Re-point the
+    // existing row at the current id rather than throwing, which previously
+    // surfaced as an unhandled 500 with no JSON body.
+    if (isUniqueEmailViolation(err)) {
+      return prisma.user.update({ where: { email }, data: { id: userId } });
+    }
+    throw err;
+  }
+}
+
+function isUniqueEmailViolation(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const e = err as { code?: string; meta?: { target?: unknown } };
+  if (e.code !== "P2002") return false;
+  const target = e.meta?.target;
+  return Array.isArray(target) ? target.includes("email") : target === "email";
 }

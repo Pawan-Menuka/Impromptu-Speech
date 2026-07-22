@@ -62,33 +62,42 @@ export async function POST(req: Request) {
     return Response.json({ error: "audioUrl must be an uploaded recording" }, { status: 400 });
   }
 
-  // Ensure the local User row exists (lazy sync), then validate the topic.
-  const user = await getOrCreateUser();
-  if (!user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  // Everything below touches the database. An uncaught throw here returns a
+  // bodyless 500, which the client cannot parse as JSON — the user then sees
+  // "Unexpected end of JSON input" instead of the real cause, and the recorded
+  // speech is lost. Always answer with JSON.
+  try {
+    // Ensure the local User row exists (lazy sync), then validate the topic.
+    const user = await getOrCreateUser();
+    if (!user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const topic = await prisma.topic.findUnique({ where: { id: data.topicId } });
+    if (!topic) {
+      return Response.json({ error: "Unknown topic" }, { status: 400 });
+    }
+
+    const session = await prisma.session.create({
+      data: {
+        userId: user.id,
+        topicId: data.topicId,
+        difficulty: data.difficulty,
+        durationSec: data.durationSec,
+        audioUrl: data.audioUrl,
+        transcript: data.transcript,
+        wpm: data.wpm,
+        fillerCount: data.fillerCount,
+        overallScore: data.overallScore,
+        criteria: data.criteria as unknown as Prisma.InputJsonValue,
+        tips: data.tips as unknown as Prisma.InputJsonValue,
+      },
+      select: { id: true },
+    });
+
+    return Response.json({ id: session.id });
+  } catch (err) {
+    console.error("Saving session failed:", err);
+    return Response.json({ error: "Could not save your session." }, { status: 500 });
   }
-
-  const topic = await prisma.topic.findUnique({ where: { id: data.topicId } });
-  if (!topic) {
-    return Response.json({ error: "Unknown topic" }, { status: 400 });
-  }
-
-  const session = await prisma.session.create({
-    data: {
-      userId: user.id,
-      topicId: data.topicId,
-      difficulty: data.difficulty,
-      durationSec: data.durationSec,
-      audioUrl: data.audioUrl,
-      transcript: data.transcript,
-      wpm: data.wpm,
-      fillerCount: data.fillerCount,
-      overallScore: data.overallScore,
-      criteria: data.criteria as unknown as Prisma.InputJsonValue,
-      tips: data.tips as unknown as Prisma.InputJsonValue,
-    },
-    select: { id: true },
-  });
-
-  return Response.json({ id: session.id });
 }
