@@ -1,20 +1,34 @@
-// Uploads the landing frame sequence (public/frames/*.jpg) to Cloudflare R2 so
-// Vercel doesn't serve ~178 image requests per landing visit.
+// Uploads a landing frame sequence to Cloudflare R2 so Vercel doesn't serve
+// ~178 image requests per landing visit.
 //
-//   npm run frames:upload
+//   npm run frames:upload                                  # public/frames -> frames/
+//   node scripts/upload-frames.mjs <sourceDir> <prefix>    # any set -> any prefix
 //
-// Reads R2 credentials from .env.local. Objects are stored under the `frames/`
-// prefix with a long immutable cache header (filenames never change).
+// Prefixes are versioned rather than overwritten (frames/, frames-webp/, ...)
+// so switching sets is a NEXT_PUBLIC_FRAME_BASE_URL change plus a redeploy, and
+// rolling back costs nothing. Objects carry a long immutable cache header,
+// which is only safe because filenames within a prefix never change.
+//
+// Reads R2 credentials from .env.local.
 import { config as loadEnv } from "dotenv";
 loadEnv({ path: ".env.local" });
 
 import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, extname } from "node:path";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
-const PREFIX = "frames";
+const SOURCE_DIR = process.argv[2] ?? join("public", "frames");
+const PREFIX = (process.argv[3] ?? "frames").replace(/^\/+|\/+$/g, "");
 const CONCURRENCY = 8;
 const CACHE_CONTROL = "public, max-age=31536000, immutable";
+
+const CONTENT_TYPES = new Map([
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".webp", "image/webp"],
+  [".avif", "image/avif"],
+  [".png", "image/png"],
+]);
 
 function required(name) {
   const v = process.env[name];
@@ -38,17 +52,19 @@ const client = new S3Client({
   },
 });
 
-const dir = join(process.cwd(), "public", "frames");
+const dir = join(process.cwd(), SOURCE_DIR);
 let files;
 try {
-  files = (await readdir(dir)).filter((f) => f.toLowerCase().endsWith(".jpg")).sort();
+  files = (await readdir(dir))
+    .filter((f) => CONTENT_TYPES.has(extname(f).toLowerCase()))
+    .sort();
 } catch {
   console.error(`Could not read ${dir}`);
   process.exit(1);
 }
 
 if (files.length === 0) {
-  console.error("No .jpg frames found in public/frames");
+  console.error(`No image frames found in ${dir}`);
   process.exit(1);
 }
 
@@ -65,7 +81,7 @@ async function upload(name) {
         Bucket: bucket,
         Key: `${PREFIX}/${name}`,
         Body: body,
-        ContentType: "image/jpeg",
+        ContentType: CONTENT_TYPES.get(extname(name).toLowerCase()),
         CacheControl: CACHE_CONTROL,
       }),
     );
@@ -88,6 +104,6 @@ if (publicUrl) {
   console.log(`\nSet this in Vercel (and .env.local if you want dev to use R2 too):`);
   console.log(`  NEXT_PUBLIC_FRAME_BASE_URL=${publicUrl}/${PREFIX}`);
   console.log(`\nVerify one frame loads:`);
-  console.log(`  ${publicUrl}/${PREFIX}/frame_001.jpg`);
+  console.log(`  ${publicUrl}/${PREFIX}/${files[0]}`);
 }
 process.exit(failed ? 1 : 0);
