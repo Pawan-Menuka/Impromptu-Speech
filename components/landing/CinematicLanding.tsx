@@ -78,6 +78,9 @@ export function CinematicLanding() {
   const wheelAccumRef = useRef(0);
   const checkpointRef = useRef(0);
   const reducedRef = useRef(false);
+  // Kicks the lazy frame queue. Held in a ref so a checkpoint change or the
+  // motion toggle can re-prioritise / resume it from outside the load effect.
+  const pumpRef = useRef<(() => void) | null>(null);
   // Overlay text nodes, driven imperatively (opacity + translateY) from progress.
   const overlayRefs = useRef<Array<HTMLDivElement | null>>([null, null, null, null, null]);
 
@@ -136,18 +139,45 @@ export function CinematicLanding() {
     ctx.drawImage(img, dx, dy, dw, dh);
   }, []);
 
-  // Preload frames (priority set first, then the rest).
+  // Preload frames: a small priority backbone first, then the rest lazily,
+  // nearest-to-the-playhead first.
+  //
+  // Previously every remaining frame was requested at once the moment the
+  // backbone landed — ~20 MB of images competing for bandwidth regardless of
+  // where the viewer actually was. `draw()` already falls back to the nearest
+  // loaded frame, so fetching on demand degrades gracefully: the worst case is
+  // the same coarse stepping the backbone gives during the initial load.
   useEffect(() => {
     const imgs: HTMLImageElement[] = new Array(FRAME_COUNT);
     imagesRef.current = imgs;
 
+    // Read the media query directly rather than the `reduced` state: this
+    // effect runs before the effect that populates that state. Seed the ref
+    // too, otherwise the queue gets a brief window where it still reads the
+    // initial `false` and fetches a handful of frames before stopping.
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    reducedRef.current = prefersReduced;
+
+    // With reduced motion the glide duration is 0, so the playhead jumps
+    // straight to an anchor and the in-between frames are never drawn. Loading
+    // only the anchors takes those visitors from ~20 MB to ~0.6 MB. If they
+    // later switch motion back on, the queue below fills in the rest.
     const priority = new Set<number>(ANCHORS);
-    for (let i = 0; i < FRAME_COUNT; i += 6) priority.add(i);
+    if (!prefersReduced) {
+      for (let i = 0; i < FRAME_COUNT; i += 6) priority.add(i);
+    }
     const priorityTotal = priority.size;
     let priorityLoaded = 0;
 
+    const requested = new Set<number>();
+
     const load = (i: number, isPriority: boolean) =>
       new Promise<void>((resolve) => {
+        if (requested.has(i)) {
+          resolve();
+          return;
+        }
+        requested.add(i);
         const img = new Image();
         const done = () => {
           imgs[i] = img;
@@ -163,18 +193,60 @@ export function CinematicLanding() {
       });
 
     let cancelled = false;
+
+    const pending = new Set<number>();
+    for (let i = 0; i < FRAME_COUNT; i++) if (!priority.has(i)) pending.add(i);
+
+    // A few in flight at a time, so the frames nearest the playhead win the
+    // bandwidth instead of queueing behind 140 others.
+    const MAX_IN_FLIGHT = 4;
+    let inFlight = 0;
+
+    const pump = () => {
+      if (cancelled || reducedRef.current) return;
+      while (inFlight < MAX_IN_FLIGHT && pending.size > 0) {
+        // Re-picked on every slot, so changing checkpoint mid-load naturally
+        // re-prioritises without cancelling anything in flight.
+        const head = playheadRef.current;
+        let next = -1;
+        let bestDist = Infinity;
+        for (const i of pending) {
+          const d = Math.abs(i - head);
+          if (d < bestDist) {
+            bestDist = d;
+            next = i;
+          }
+        }
+        if (next < 0) return;
+        pending.delete(next);
+        inFlight++;
+        void load(next, false).then(() => {
+          inFlight--;
+          pump();
+        });
+      }
+    };
+    pumpRef.current = pump;
+
     (async () => {
       await Promise.all([...priority].map((i) => load(i, true)));
       if (cancelled) return;
       setLoaded(true);
       draw(0);
-      for (let i = 0; i < FRAME_COUNT; i++) if (!priority.has(i)) void load(i, false);
+      pump();
     })();
 
     return () => {
       cancelled = true;
+      pumpRef.current = null;
     };
   }, [draw]);
+
+  // Resume the queue when motion is switched back on, and top it up as the
+  // viewer moves so the next segment is fetched ahead of them.
+  useEffect(() => {
+    if (!reduced) pumpRef.current?.();
+  }, [reduced, checkpoint]);
 
   // Initialize overlays: intro visible, the rest hidden.
   useEffect(() => {
