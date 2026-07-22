@@ -19,8 +19,26 @@ const BASE_TY = ["7vh", "0px", "0px", "0px", "0px"];
 // visit don't count against the Vercel plan.
 const FRAME_BASE = (process.env.NEXT_PUBLIC_FRAME_BASE_URL ?? "/frames").replace(/\/+$/, "");
 
-function frameUrl(i: number): string {
-  return `${FRAME_BASE}/frame_${String(i + 1).padStart(3, "0")}.webp`;
+// Half-resolution set (720x405) for phones. Portrait phones show the frame at
+// its native aspect rather than cover-cropped (see `draw`), so 720px wide lands
+// at roughly 1:1 on a typical device -- full detail for 5.0 MB instead of
+// 12.6 MB. Falls back to the desktop set if unset.
+const FRAME_BASE_MOBILE = (
+  process.env.NEXT_PUBLIC_FRAME_BASE_URL_MOBILE ??
+  process.env.NEXT_PUBLIC_FRAME_BASE_URL ??
+  "/frames-mobile"
+).replace(/\/+$/, "");
+
+function frameUrl(i: number, mobile: boolean): string {
+  const base = mobile ? FRAME_BASE_MOBILE : FRAME_BASE;
+  return `${base}/frame_${String(i + 1).padStart(3, "0")}.webp`;
+}
+
+// Phones in portrait get the native-aspect treatment. Decided once on mount and
+// never re-evaluated: switching mid-session would re-download the whole
+// sequence, and an orientation change is not worth 5 MB.
+function isPortraitPhone(): boolean {
+  return window.matchMedia("(max-width: 767px) and (orientation: portrait)").matches;
 }
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -81,6 +99,9 @@ export function CinematicLanding() {
   // Kicks the lazy frame queue. Held in a ref so a checkpoint change or the
   // motion toggle can re-prioritise / resume it from outside the load effect.
   const pumpRef = useRef<(() => void) | null>(null);
+  // Portrait-phone treatment + the offscreen canvas its backdrop draws through.
+  const portraitRef = useRef(false);
+  const scratchRef = useRef<HTMLCanvasElement | null>(null);
   // Overlay text nodes, driven imperatively (opacity + translateY) from progress.
   const overlayRefs = useRef<Array<HTMLDivElement | null>>([null, null, null, null, null]);
 
@@ -130,12 +151,54 @@ export function CinematicLanding() {
 
     const cw = canvas.width;
     const ch = canvas.height;
-    const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight) * 1.04;
-    const dw = img.naturalWidth * scale;
-    const dh = img.naturalHeight * scale;
+    const nw = img.naturalWidth;
+    const nh = img.naturalHeight;
+    ctx.clearRect(0, 0, cw, ch);
+
+    if (portraitRef.current) {
+      // A 16:9 frame cover-cropped into a portrait phone needs a ~2.4x upscale
+      // and throws away ~76% of the image -- soft, and the composition is gone.
+      // Instead: a blurred copy fills the screen (blur hides the upscale, since
+      // sharpness isn't perceived in an out-of-focus layer) with the frame drawn
+      // sharp at its native aspect on top.
+      //
+      // The blur is done by drawing through a small offscreen canvas rather than
+      // ctx.filter, which is far cheaper -- this runs every rAF during a tween,
+      // and a real blur at this size drops frames on mid-range phones.
+      const scratch = scratchRef.current ?? document.createElement("canvas");
+      scratchRef.current = scratch;
+      const sw = 64;
+      const sh = Math.max(1, Math.round((sw * ch) / cw));
+      if (scratch.width !== sw || scratch.height !== sh) {
+        scratch.width = sw;
+        scratch.height = sh;
+      }
+      const sctx = scratch.getContext("2d");
+      if (sctx) {
+        const bScale = Math.max(sw / nw, sh / nh);
+        const bw = nw * bScale;
+        const bh = nh * bScale;
+        sctx.clearRect(0, 0, sw, sh);
+        sctx.drawImage(img, (sw - bw) / 2, (sh - bh) / 2, bw, bh);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(scratch, 0, 0, cw, ch);
+      }
+      // Settle the backdrop back so it reads as depth, not a second image.
+      ctx.fillStyle = "rgba(11,8,9,0.62)";
+      ctx.fillRect(0, 0, cw, ch);
+
+      const fScale = Math.min(cw / nw, ch / nh);
+      const fw = nw * fScale;
+      const fh = nh * fScale;
+      ctx.drawImage(img, (cw - fw) / 2, (ch - fh) / 2, fw, fh);
+      return;
+    }
+
+    const scale = Math.max(cw / nw, ch / nh) * 1.04;
+    const dw = nw * scale;
+    const dh = nh * scale;
     const dx = (cw - dw) / 2;
     const dy = (ch - dh) / 2 - dh * 0.02;
-    ctx.clearRect(0, 0, cw, ch);
     ctx.drawImage(img, dx, dy, dw, dh);
   }, []);
 
@@ -157,6 +220,11 @@ export function CinematicLanding() {
     // initial `false` and fetches a handful of frames before stopping.
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     reducedRef.current = prefersReduced;
+
+    // Fixed for the session: `draw` and every frame URL below depend on it, and
+    // flipping it mid-flight would strand the already-loaded set.
+    const portrait = isPortraitPhone();
+    portraitRef.current = portrait;
 
     // With reduced motion the glide duration is 0, so the playhead jumps
     // straight to an anchor and the in-between frames are never drawn. Loading
@@ -189,7 +257,7 @@ export function CinematicLanding() {
         };
         img.onload = done;
         img.onerror = done;
-        img.src = frameUrl(i);
+        img.src = frameUrl(i, portrait);
       });
 
     let cancelled = false;
