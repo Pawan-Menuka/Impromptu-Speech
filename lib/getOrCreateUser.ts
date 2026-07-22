@@ -44,8 +44,16 @@ export async function getOrCreateUser() {
 
 function isUniqueEmailViolation(err: unknown): boolean {
   if (typeof err !== "object" || err === null) return false;
-  const e = err as { code?: string; meta?: { target?: unknown } };
+  const e = err as { code?: string; message?: string; meta?: { target?: unknown } };
   if (e.code !== "P2002") return false;
+
+  // Prisma normally names the offending column in `meta.target`, but under the
+  // Neon driver adapter (Prisma 7) meta carries only `modelName` and
+  // `driverAdapterError` — `target` is undefined. Verified against a real
+  // production P2002. So fall back to the message, which does name the field:
+  // "Unique constraint failed on the fields: (`email`)".
   const target = e.meta?.target;
-  return Array.isArray(target) ? target.includes("email") : target === "email";
+  if (Array.isArray(target)) return target.includes("email");
+  if (typeof target === "string") return target.includes("email");
+  return /email/i.test(e.message ?? "");
 }
