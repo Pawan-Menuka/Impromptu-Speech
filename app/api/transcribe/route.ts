@@ -5,8 +5,12 @@ import { R2_PUBLIC_URL } from "@/lib/r2";
 import { rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
-// Transcription polls AssemblyAI; allow a long-running request on Vercel.
-export const maxDuration = 120;
+// Transcription polls AssemblyAI (pollingTimeout 120s in lib/transcription.ts).
+// Keep this platform ceiling *above* that timeout so, in the worst case, the
+// SDK's own timeout fires first and returns a clean JSON error -- rather than
+// Vercel killing the function at the same instant and sending an opaque 504
+// with no body. Well within the Hobby plan's 300s max (fluid compute).
+export const maxDuration = 150;
 
 const BodySchema = z.object({
   audioUrl: z.url(),
