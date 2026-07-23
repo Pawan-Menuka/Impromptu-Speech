@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   }
 
   // Cost guard: this route spends money per call.
-  const limit = rateLimit(`rate:${userId}`, 10, 60_000);
+  const limit = await rateLimit(`rate:${userId}`, 10, 60_000);
   if (!limit.ok) {
     return Response.json(
       { error: "Too many requests. Please slow down." },

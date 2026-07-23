@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   }
 
   // Storage-cost guard.
-  const limit = rateLimit(`upload:${userId}`, 20, 60_000);
+  const limit = await rateLimit(`upload:${userId}`, 20, 60_000);
   if (!limit.ok) {
     return Response.json(
       { error: "Too many requests. Please slow down." },

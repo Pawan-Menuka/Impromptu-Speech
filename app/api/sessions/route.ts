@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const limit = rateLimit(`sessions:${userId}`, 20, 60_000);
+  const limit = await rateLimit(`sessions:${userId}`, 20, 60_000);
   if (!limit.ok) {
     return Response.json(
       { error: "Too many requests. Please slow down." },
