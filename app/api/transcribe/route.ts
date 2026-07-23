@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   }
 
   // Cost guard: transcription is a paid call.
-  const limit = rateLimit(`transcribe:${userId}`, 10, 60_000);
+  const limit = await rateLimit(`transcribe:${userId}`, 10, 60_000);
   if (!limit.ok) {
     return Response.json(
       { error: "Too many requests. Please slow down." },
