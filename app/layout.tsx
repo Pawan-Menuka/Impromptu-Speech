@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Hanken_Grotesk, Jost } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Analytics } from "@vercel/analytics/next";
 import { AppHeader } from "@/components/AppHeader";
 import "./globals.css";
 
@@ -56,6 +57,7 @@ export default function RootLayout({
           <div className="ambient" aria-hidden />
           <AppHeader />
           <div className="flex flex-1 flex-col">{children}</div>
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>
