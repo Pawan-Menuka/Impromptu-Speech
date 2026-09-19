@@ -12,7 +12,7 @@
 | 0 | Search Console + Bing setup | You (browser, ~20 min) | ⬜ Not started |
 | 1 | Technical foundation (metadata, robots, sitemap, noindex) | Code | ✅ Done — awaiting deploy + Phase 0 sitemap submission |
 | 2 | Icons, manifest, social share image | Code + your artwork | ✅ Code done, interim art — real artwork still needed |
-| 3 | Structured data (JSON-LD) | Code | ⬜ Not started |
+| 3 | Structured data (JSON-LD) | Code | ✅ Done — `author`/`offers` omitted pending your decisions |
 | 4 | Landing page on-page fixes | Code (no visual change) | ⬜ Not started |
 | 5 | Performance / Core Web Vitals | Code + measurement | ⬜ Not started |
 | 6 | Public topic library + topic generator | Code (plain UI, you reskin) | ⬜ Not started |
@@ -468,7 +468,25 @@ show the image, title, and description. Send the link to yourself on WhatsApp.
 
 ---
 
-## Phase 3 — Structured data / JSON-LD (code, short)
+## Phase 3 — Structured data / JSON-LD (code, short) [done]
+
+**Shipped 2026-09-19.** `app/page.tsx` now emits a `WebSite` + `WebApplication`
+JSON-LD `@graph` alongside `<CinematicLanding />`.
+
+**Deviation from the plan text:** shipped **without** `author` and `offers`.
+Part F's open decisions (public author name; whether the app is free) are
+still unanswered, and publishing a guessed name or an unverified "free" price
+claim in machine-readable data is worse than omitting them — both fields are
+optional in schema.org. Add them once you've decided (edit the `jsonLd` object
+in `app/page.tsx`); no `aggregateRating` was added and none should be until
+there are real reviews.
+
+**Verified:** tsc/eslint/build clean. `next start` + curl confirmed the
+`<script type="application/ld+json">` renders with the correct absolute prod
+URLs; parsed it with `JSON.parse` to confirm well-formed JSON with the
+expected two `@graph` entries (`WebSite`, `WebApplication`). Not yet run
+through Google's Rich Results Test or validator.schema.org — both need a live
+URL (or paste), so do that after deploy.
 
 Tells search engines (and AI answer engines) explicitly *what* the site is.
 
