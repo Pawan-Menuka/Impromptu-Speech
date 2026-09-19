@@ -13,7 +13,7 @@
 | 1 | Technical foundation (metadata, robots, sitemap, noindex) | Code | ✅ Done — awaiting deploy + Phase 0 sitemap submission |
 | 2 | Icons, manifest, social share image | Code + your artwork | ✅ Code done, interim art — real artwork still needed |
 | 3 | Structured data (JSON-LD) | Code | ✅ Done — `author`/`offers` omitted pending your decisions |
-| 4 | Landing page on-page fixes | Code (no visual change) | ⬜ Not started |
+| 4 | Landing page on-page fixes | Code (no visual change) | ✅ Done — item 2 (optional footer copy) skipped, your call |
 | 5 | Performance / Core Web Vitals | Code + measurement | ⬜ Not started |
 | 6 | Public topic library + topic generator | Code (plain UI, you reskin) | ⬜ Not started |
 | 7 | Guides (articles) | Writing + code | ⬜ Not started |
@@ -547,7 +547,30 @@ https://validator.schema.org show 0 errors.
 
 ---
 
-## Phase 4 — Landing page on-page fixes (code, no visual change)
+## Phase 4 — Landing page on-page fixes (code, no visual change) [done]
+
+**Shipped 2026-09-19** on `components/landing/CinematicLanding.tsx`:
+1. Hero "Start your first speech" button and the final mic "Record" CTA are
+   now real `next/link` `<Link href={isSignedIn ? "/practice" : "/sign-up"}>`
+   elements — identical `className`/children/`aria-label`, only the tag and
+   `href` changed. The header's "Start practicing" and "Sign in" buttons were
+   **left as `<button onClick>`** — the plan named only the hero and Record
+   CTAs, and those two aren't in scope (Sign in points to a `noindex`d page
+   anyway).
+2. **Skipped** — the optional below-the-fold copy/links to `/topics` and
+   `/guides` is explicitly your call, and those routes don't exist yet
+   (Phases 6–7). Revisit once they do.
+3. No change needed — heading order was already correct.
+4. Added `aria-hidden` to the decorative `<canvas>`.
+
+**Verified:** tsc/eslint/build clean. `next start` + curl confirmed the built
+HTML has real `<a href="/sign-up">` tags (byte-identical `class` to the old
+`<button>`, so no layout change) for both CTAs, and `<canvas aria-hidden="true">`.
+Could not get a browser screenshot this session (tool returned "Policy check
+temporarily unavailable" on every retry) — visual-equivalence was confirmed
+structurally instead (identical class strings, only tag name + href added).
+**Recommend a quick manual look at the deployed preview before merging**, since
+that's the one check this phase couldn't fully close the loop on.
 
 1. **Make CTAs real links.** In `CinematicLanding.tsx` (~L562), "Start your first
    speech" is a `<button onClick={goPractice}>`. Crawlers only follow `<a href>`.
