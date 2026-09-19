@@ -14,7 +14,7 @@
 | 2 | Icons, manifest, social share image | Code + your artwork | ✅ Code done, interim art — real artwork still needed |
 | 3 | Structured data (JSON-LD) | Code | ✅ Done — `author`/`offers` omitted pending your decisions |
 | 4 | Landing page on-page fixes | Code (no visual change) | ✅ Done — item 2 (optional footer copy) skipped, your call |
-| 5 | Performance / Core Web Vitals | Code + measurement | ⬜ Not started |
+| 5 | Performance / Core Web Vitals | Code + measurement | ✅ Code done — frame migration to R2 and PageSpeed measurement still need you |
 | 6 | Public topic library + topic generator | Code (plain UI, you reskin) | ⬜ Not started |
 | 7 | Guides (articles) | Writing + code | ⬜ Not started |
 | 8 | Backlinks & launch promotion | You (ongoing) | ⬜ Not started |
@@ -597,7 +597,46 @@ SEO) should be **100**.
 
 ---
 
-## Phase 5 — Performance / Core Web Vitals (code + measurement)
+## Phase 5 — Performance / Core Web Vitals (code + measurement) [partially done]
+
+**Shipped 2026-09-19:**
+- **Item 3, font trimming:** audited every `font-light`/`font-normal`/`font-medium`/
+  `font-semibold`/`font-bold` usage against which font-family class (`font-display`/
+  `font-label`/default body) each sits under. Confirmed and removed three
+  genuinely unused weights in `app/layout.tsx`: Cormorant Garamond's `600`
+  (`font-semibold` never used with `font-display`), Hanken Grotesk's `700`
+  (`font-bold` unused anywhere in the app), Jost's `300` (`font-light` never
+  used with `font-label`). Kept both `normal`/`italic` styles for Cormorant
+  (italic is used extensively). No visual change — every weight/style
+  combination still in use is still loaded.
+- **Item 4, real-user metrics:** added `@vercel/speed-insights` (`^2.0.0`,
+  matches the existing `@vercel/analytics` major) and `<SpeedInsights />` next
+  to `<Analytics />` in `app/layout.tsx`.
+- **Item 5, CLS:** confirmed by reading the code — no change needed. The
+  frame-preload "backbone" in `CinematicLanding.tsx` already prioritizes the
+  frame visible on load, which is what keeps CLS near zero (see the audit at
+  the top of this plan).
+
+**Verified:** tsc/eslint/build clean. `next start` + curl confirmed
+`SpeedInsights` is correctly referenced in the page's RSC payload (identical
+pattern to the existing `Analytics` component — both are client components
+that inject their script after hydration, not in the raw SSR HTML, so their
+absence from `curl`'d HTML is expected, not a bug).
+
+**Not done — needs you, not code:**
+- **Item 1, baseline measurement:** the in-app browser's tools (screenshot,
+  `get_page_text`) returned "Policy check temporarily unavailable" on every
+  retry this session, so I couldn't run PageSpeed Insights myself. Please run
+  https://pagespeed.web.dev on `https://impromptu.pawanmenuka.com`, **Mobile**
+  tab, and paste the LCP/INP/CLS numbers here as the baseline:
+  `LCP: __ · INP: __ · CLS: __` (target: LCP < 2.5s, INP < 200ms, CLS < 0.1).
+- **Item 2, move frames off Vercel to R2:** deliberately not attempted. This
+  needs your real Cloudflare R2 credentials (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+  `R2_SECRET_ACCESS_KEY`) to run `npm run frames:upload` and set
+  `NEXT_PUBLIC_FRAME_BASE_URL` in Vercel — a production infrastructure action
+  with real cost/side-effects that shouldn't run without you present, the same
+  reasoning as Phase 0/8. Run it yourself per the README's existing
+  instructions, or ask me to walk through it with you interactively.
 
 Speed is a (modest) ranking factor and a big conversion factor.
 
