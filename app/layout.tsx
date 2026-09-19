@@ -2,13 +2,20 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Hanken_Grotesk, Jost } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AppHeader } from "@/components/AppHeader";
 import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "@/lib/site";
 import "./globals.css";
 
+// Weight lists are trimmed to exactly what's used in the codebase (verified
+// with a `font-light|font-normal|font-medium|font-semibold|font-bold` grep
+// across app/ and components/ — SEO Phase 5). Unused weights bloat the font
+// payload and slow first paint for no visual benefit. If a design change adds
+// a new weight, add it back here first — an unloaded weight renders as a
+// faux-bold/synthetic approximation of the nearest loaded one, not a 404.
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
+  weight: ["300", "400", "500"], // 600 (font-semibold) is unused with font-display
   style: ["normal", "italic"],
   variable: "--font-cormorant",
   display: "swap",
@@ -16,14 +23,14 @@ const cormorant = Cormorant_Garamond({
 
 const hanken = Hanken_Grotesk({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600"], // 700 (font-bold) is unused anywhere in the app
   variable: "--font-hanken",
   display: "swap",
 });
 
 const jost = Jost({
   subsets: ["latin"],
-  weight: ["300", "400", "500"],
+  weight: ["400", "500"], // 300 (font-light) is unused with font-label
   variable: "--font-jost",
   display: "swap",
 });
@@ -79,6 +86,7 @@ export default function RootLayout({
           <AppHeader />
           <div className="flex flex-1 flex-col">{children}</div>
           <Analytics />
+          <SpeedInsights />
         </body>
       </html>
     </ClerkProvider>
