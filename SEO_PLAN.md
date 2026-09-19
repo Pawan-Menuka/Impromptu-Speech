@@ -11,7 +11,7 @@
 |---|---|---|---|
 | 0 | Search Console + Bing setup | You (browser, ~20 min) | ⬜ Not started |
 | 1 | Technical foundation (metadata, robots, sitemap, noindex) | Code | ✅ Done — awaiting deploy + Phase 0 sitemap submission |
-| 2 | Icons, manifest, social share image | Code + your artwork | ⬜ Not started |
+| 2 | Icons, manifest, social share image | Code + your artwork | ✅ Code done, interim art — real artwork still needed |
 | 3 | Structured data (JSON-LD) | Code | ⬜ Not started |
 | 4 | Landing page on-page fixes | Code (no visual change) | ⬜ Not started |
 | 5 | Performance / Core Web Vitals | Code + measurement | ⬜ Not started |
@@ -388,7 +388,38 @@ deployments are already `noindex`ed by Vercel automatically.
 
 ---
 
-## Phase 2 — Icons, manifest, social share image (code + your artwork)
+## Phase 2 — Icons, manifest, social share image (code + your artwork) [done, interim art]
+
+**Shipped 2026-09-19.** Code plumbing is in place; the artwork is a plain
+interim placeholder, not your final design.
+
+Files added: `app/icon.tsx`, `app/apple-icon.tsx`, `app/opengraph-image.tsx`
+(all generated via `next/og` `ImageResponse`, reusing the header's own
+`.logo-dot` gradient mark and brand colors from `globals.css` — no new design
+invented), `app/manifest.ts`. Removed the unused create-next-app leftovers
+(`public/next.svg`, `vercel.svg`, `file.svg`, `globe.svg`, `window.svg` — confirmed
+zero references first).
+
+**Deviation from the plan text:** the plan's `manifest.ts` example and the
+`icon.png`/`apple-icon.png` file convention assume static image *files*.
+Instead this shipped the **code-generation** convention (`icon.tsx` /
+`apple-icon.tsx` / `opengraph-image.tsx`), which Next serves at hashed paths
+like `/icon?a298a36f416b5106`, not a stable `/icon.png`. So `manifest.ts`
+points its one icon entry at the existing static `favicon.ico` (confirmed via
+`next build` + `next start` + curl that this is the only stable, literal path
+available) rather than the plan's `/icon.png`.
+
+**Verified:** tsc/eslint/build clean; `next start` + curl confirmed the
+rendered `<head>` (`rel="icon"`, `rel="apple-touch-icon"`, `rel="manifest"`,
+`og:image`/`twitter:image` meta with correct 1200×630 / 512×512 / 180×180
+dimensions and absolute prod URLs); downloaded and visually inspected all
+three generated PNGs — correct size, on-brand gradient dot, readable wordmark.
+
+**Still needed (you):** design the real 1200×630 share image and (optionally)
+a real icon/apple-icon PNG per the table above, then add them as static files
+in `app/` — Next automatically prefers a static file over the generated route
+of the same name, so no code changes will be needed to switch them in. Also
+re-run the opengraph.xyz / LinkedIn Post Inspector checks after deploy.
 
 Next.js picks these up by **file name** in `app/`. No code wiring is needed.
 
