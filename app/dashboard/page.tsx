@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getOrCreateUser } from "@/lib/getOrCreateUser";
 import { prisma } from "@/lib/prisma";
@@ -5,6 +6,11 @@ import { avgScore, currentStreak } from "@/lib/stats";
 import { StatsBar } from "@/components/dashboard/StatsBar";
 import { ProgressChart } from "@/components/dashboard/ProgressChart";
 import { RecentSessionsList } from "@/components/dashboard/RecentSessionsList";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  robots: { index: false, follow: false },
+};
 
 export default async function DashboardPage() {
   const user = await getOrCreateUser();
