@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import { getOrCreateUser } from "@/lib/getOrCreateUser";
 import { prisma } from "@/lib/prisma";
 import { SessionsTable } from "@/components/history/SessionsTable";
+
+export const metadata: Metadata = {
+  title: "History",
+  robots: { index: false, follow: false },
+};
 
 export default async function HistoryPage() {
   const user = await getOrCreateUser();
