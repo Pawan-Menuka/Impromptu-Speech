@@ -15,7 +15,7 @@
 | 3 | Structured data (JSON-LD) | Code | ✅ Done — `author`/`offers` omitted pending your decisions |
 | 4 | Landing page on-page fixes | Code (no visual change) | ✅ Done — item 2 (optional footer copy) skipped, your call |
 | 5 | Performance / Core Web Vitals | Code + measurement | ✅ Code done — frame migration to R2 and PageSpeed measurement still need you |
-| 6 | Public topic library + topic generator | Code (plain UI, you reskin) | ⬜ Not started |
+| 6 | Public topic library + topic generator | Code (plain UI, you reskin) | ✅ Done — deep-link feature skipped, your call |
 | 7 | Guides (articles) | Writing + code | ⬜ Not started |
 | 8 | Backlinks & launch promotion | You (ongoing) | ⬜ Not started |
 | 9 | Measure & iterate | You (monthly) | ⬜ Ongoing |
@@ -695,7 +695,52 @@ enough. **Don't** repeat it unnaturally ("keyword stuffing" gets penalized).
 
 ---
 
-## Phase 6 — Public topic library + topic generator (code, 2 sessions)
+## Phase 6 — Public topic library + topic generator (code, 2 sessions) [done]
+
+**Shipped 2026-09-20.** New files: `lib/topicPages.ts` (helpers), `lib/jsonld.ts`
+(shared `breadcrumbJsonLd`/`itemListJsonLd`), `components/topics/TopicListPage.tsx`
+(shared list-page render, used by both dynamic routes), `components/topics/PracticeCta.tsx`,
+`components/topics/TopicGenerator.tsx`, `app/topics/page.tsx` (hub),
+`app/topics/[level]/page.tsx`, `app/topics/category/[category]/page.tsx`,
+`app/topic-generator/page.tsx`. Edited: `lib/topics.ts` (exported the base
+`TOPICS` array so the id-generation logic isn't duplicated), `app/sitemap.ts`
+(now generated from the same helpers, can't drift), `app/not-found.tsx` and
+`components/AppHeader.tsx` (added `/topics` links, per 6.3).
+
+**Deviation from the plan text, found and fixed during verification:** the
+first pass used server-side `auth()` (Clerk) inside the `[level]` and
+`category/[category]` pages to pick the CTA's `href`. That call forced those
+routes to render **dynamically** (`ƒ`) despite `generateStaticParams` —
+`auth()` reads cookies/headers, which opts a route out of static generation.
+Caught this from the `next build` route table (confirmed by contrast: 
+`/topic-generator`, which already checked sign-in state client-side via
+`useUser()`, rendered static `○`). Fixed by extracting `PracticeCta`, a tiny
+client component doing the same `useUser()` check, and removing `auth()` from
+every `/topics/*` server page. Rebuilt: all of `/topics`, `/topics/[level]`,
+and `/topics/category/[category]` now render `○`/`●` (fully static), matching
+what the plan intended.
+
+**Skipped:** the optional `/practice?topic=<id>` deep-link feature — CTAs go
+to `/practice` (general) or `/sign-up`, not a preselected topic. This is
+explicitly your call per the plan; flag it if you want it added later.
+
+**Categories shipped:** `philosophy`, `society`, `ethics`, `technology` (all
+≥10 topics as of today's 150-topic bank). More will qualify automatically as
+the bank grows, via `getIndexableCategories()` — no code change needed.
+
+**Verified:** tsc/eslint/build clean. `next build` route table confirms
+`/topics`, `/topic-generator` static (`○`), `/topics/[level]` and
+`/topics/category/[category]` prerendered via SSG (`●`) for exactly
+easy/medium/hard and philosophy/society/ethics/technology. `next start` +
+curl: all seven real routes return `200` logged out, an unlisted category
+(`/topics/category/nonexistent`) returns `404`; `/topics/easy` has a unique
+`<title>`/canonical/`<h1>`, lists all 50 topics, and both its JSON-LD script
+tags (`BreadcrumbList`, `ItemList`) parse as valid JSON; `sitemap.xml` lists
+all 9 new URLs alongside the homepage.
+
+**Not done — needs you:** request indexing for `/topics` in GSC after this
+deploys (per the plan's "Verify" step); reskin the plain UI whenever you're
+ready — nothing here is meant to be final visual design.
 
 **Why this is the highest-value phase:** you already own 150 curated, graded
 topics (`data/topics.json`: 50 EASY / 50 MEDIUM / 50 HARD). "Impromptu speech
