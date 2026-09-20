@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site";
 import { DIFFICULTY_LEVELS, getIndexableCategories } from "@/lib/topicPages";
+import { GUIDES } from "@/lib/guides";
 
 // List only public, indexable, canonical URLs — never sign-in or private pages.
 // Imports the same helpers the /topics pages use, so this can't drift out of
@@ -20,6 +21,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly" as const,
       priority: 0.7,
     })),
-    // Phase 7 adds /guides pages.
+    { url: `${SITE_URL}/guides`, changeFrequency: "monthly", priority: 0.8 },
+    ...GUIDES.map((g) => ({
+      url: `${SITE_URL}/guides/${g.slug}`,
+      lastModified: g.dateModified,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
   ];
 }
