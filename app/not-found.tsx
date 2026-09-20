@@ -13,6 +13,12 @@ export default function NotFound() {
       >
         Go to dashboard
       </Link>
+      <Link href="/topics" className="text-sm text-zinc-500 underline underline-offset-4 hover:text-zinc-300">
+        Browse impromptu speech topics
+      </Link>
+      <Link href="/guides" className="text-sm text-zinc-500 underline underline-offset-4 hover:text-zinc-300">
+        Read our guides
+      </Link>
     </main>
   );
 }

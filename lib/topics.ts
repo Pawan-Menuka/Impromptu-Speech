@@ -18,7 +18,10 @@ type RawTopic = { text: string; difficulty: Difficulty; category?: string | null
 //
 // Invariant: edit data/topics.json → re-run `npm run db:seed`, so the DB and
 // this list stay aligned.
-const TOPICS: TopicRow[] = (() => {
+// Exported (not module-private) so lib/topicPages.ts can build the public
+// /topics pages from the exact same list + id scheme, with no duplicated
+// id-generation logic to drift out of sync.
+export const TOPICS: TopicRow[] = (() => {
   const counters: Record<string, number> = {};
   return (topicsData as RawTopic[]).map((t) => {
     const n = (counters[t.difficulty] = (counters[t.difficulty] ?? 0) + 1);

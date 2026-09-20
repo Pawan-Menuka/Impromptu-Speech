@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 
@@ -439,7 +440,7 @@ export function CinematicLanding() {
 
   return (
     <div ref={containerRef} className="fixed inset-0 overflow-hidden bg-bg" style={{ touchAction: "none" }}>
-      <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
+      <canvas ref={canvasRef} aria-hidden className="absolute inset-0 h-full w-full" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/45 to-transparent" />
 
       {/* Loader */}
@@ -561,10 +562,13 @@ export function CinematicLanding() {
           A calm, AI-guided studio for impromptu speaking — pick a prompt, speak, and grow with every take.
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3.5">
-          <button onClick={goPractice} className="btn-accent flex items-center gap-2.5 rounded-full px-8 py-4 font-label text-sm uppercase tracking-[0.08em]">
+          <Link
+            href={isSignedIn ? "/practice" : "/sign-up"}
+            className="btn-accent flex items-center gap-2.5 rounded-full px-8 py-4 font-label text-sm uppercase tracking-[0.08em]"
+          >
             <span className="h-2 w-2 rounded-full bg-[#2a1418]" />
             Start your first speech
-          </button>
+          </Link>
           <button onClick={() => glideTo(1)} className="btn-ghost flex items-center gap-2 rounded-full px-7 py-4 font-label text-sm uppercase tracking-[0.08em]">
             See how it works <span className="text-xs opacity-70">↓</span>
           </button>
@@ -649,14 +653,14 @@ export function CinematicLanding() {
         <p className="relative font-display text-2xl font-normal italic leading-[1.3] text-[#fdfaf8] sm:text-3xl" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 2px 30px rgba(0,0,0,0.9)" }}>
           The stage is quiet. The mic is yours.
         </p>
-        <button
-          onClick={goPractice}
+        <Link
+          href={isSignedIn ? "/practice" : "/sign-up"}
           aria-label="Start your speech"
           className="record-pulse relative mt-8 flex h-[104px] w-[104px] items-center justify-center rounded-full border border-white/[.28] bg-white/[.07]"
           style={{ boxShadow: "0 12px 44px rgba(220,148,150,0.32), inset 0 0 20px rgba(255,255,255,0.05)" }}
         >
           <span className="h-[34px] w-[34px] rounded-full" style={{ background: "linear-gradient(135deg,#ecc0aa,#dc7a8e)", boxShadow: "0 0 18px rgba(220,120,138,0.7)" }} />
-        </button>
+        </Link>
         <span className="relative mt-[18px] font-label text-[13px] uppercase tracking-[0.16em] text-fg/90">Start your speech</span>
         <div className="relative mt-6 flex flex-col items-center gap-[7px]">
           <p className="font-display text-[18px] font-light italic text-fg/[.72]">

@@ -34,6 +34,12 @@ export function AppHeader() {
             </>
           ) : (
             <>
+              <Link href="/topics" className={navLinkClass}>
+                Topics
+              </Link>
+              <Link href="/guides" className={navLinkClass}>
+                Guides
+              </Link>
               <Link href="/sign-in" className={navLinkClass}>
                 Sign in
               </Link>

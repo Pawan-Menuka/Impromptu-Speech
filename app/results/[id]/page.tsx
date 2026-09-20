@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
@@ -7,6 +8,11 @@ import { CriteriaBreakdown, type Criterion } from "@/components/results/Criteria
 import { TranscriptViewer } from "@/components/results/TranscriptViewer";
 import { AudioPlayback } from "@/components/results/AudioPlayback";
 import { ImprovementTips } from "@/components/results/ImprovementTips";
+
+export const metadata: Metadata = {
+  title: "Results",
+  robots: { index: false, follow: false },
+};
 
 function Metric({ label, value }: { label: string; value: React.ReactNode }) {
   return (
