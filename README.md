@@ -1,5 +1,7 @@
 # Impromptu Speech Trainer
 
+**Live:** [impromptu.pawanmenuka.com](https://impromptu.pawanmenuka.com)
+
 Train articulation through timed impromptu speeches, with difficulty-scaled AI
 feedback on both content and delivery.
 
