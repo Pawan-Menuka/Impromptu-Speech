@@ -16,7 +16,7 @@
 | 4 | Landing page on-page fixes | Code (no visual change) | ✅ Done — item 2 (optional footer copy) skipped, your call |
 | 5 | Performance / Core Web Vitals | Code + measurement | ✅ Code done — frame migration to R2 and PageSpeed measurement still need you |
 | 6 | Public topic library + topic generator | Code (plain UI, you reskin) | ✅ Done — deep-link feature skipped, your call |
-| 7 | Guides (articles) | Writing + code | ⬜ Not started |
+| 7 | Guides (articles) | Writing + code | 🟡 Infra done, 1 of 10 guides shipped as a draft — ongoing writing work |
 | 8 | Backlinks & launch promotion | You (ongoing) | ⬜ Not started |
 | 9 | Measure & iterate | You (monthly) | ⬜ Ongoing |
 
@@ -803,7 +803,65 @@ valid; Lighthouse SEO = 100. After deploy, request indexing for `/topics` in GSC
 
 ---
 
-## Phase 7 — Guides / articles (writing + code; ongoing)
+## Phase 7 — Guides / articles (writing + code; ongoing) [infra done; content ongoing]
+
+**Why this phase is handled differently from Phases 1–6:** the plan's own
+writing rules (§7.3) call for "first-hand experience," real screenshots,
+specific numbers, and a real byline — none of which an agent session has.
+Publishing a large batch of unedited AI-drafted articles is exactly what
+§7.3 warns against ("Google's 'scaled content abuse' policy"), and the
+byline decision is still the open item from Part F. So this session shipped
+the **full code infrastructure** (deterministic, verifiable, same bar as
+Phases 1–6) plus **one honestly-drafted guide** as a working example of the
+pipeline end to end — not a first batch of ten. The other 9 titles in
+§7.2 are still queued; write/commission them at the plan's own "2 per month"
+cadence, or hand a specific title to a future session once you're ready to
+supply real specifics (a screenshot, a number, an anecdote) for it to work from.
+
+**Shipped 2026-09-20.** New files: `mdx-components.tsx` (root — required by
+`@next/mdx`, maps markdown to the app's existing classes), `lib/guides.ts`
+(manually-maintained registry, same "invariant" pattern as `data/topics.json`),
+`app/guides/layout.tsx` (shared max-w prose wrapper), `app/guides/page.tsx`
+(index), `app/guides/how-to-give-an-impromptu-speech/page.mdx` (guide #1),
+`components/guides/GuideMeta.tsx` (breadcrumb + byline/date + `Article` +
+`BreadcrumbList` JSON-LD, looked up from `lib/guides.ts` by slug),
+`components/guides/GuidePracticeCta.tsx` (reuses Phase 6's `PracticeCta`).
+Installed `@next/mdx`, `@mdx-js/loader`, `@mdx-js/react`, `@types/mdx`;
+`next.config.ts` now wraps the config with `createMDX()` and adds `md`/`mdx`
+to `pageExtensions` (Next 16's `@next/mdx` setup, confirmed against
+`node_modules/next/dist/docs/01-app/02-guides/mdx.md` since it differs from
+older tutorials). Edited: `app/sitemap.ts` (adds `/guides` + every guide from
+the registry), `app/not-found.tsx` and `components/AppHeader.tsx` (added
+`/guides` links, same pattern as Phase 6.3).
+
+**`author` deliberately omitted** from guide #1's `Article` JSON-LD and byline
+— `lib/guides.ts`'s `author` field is optional and unset, for the same reason
+Phase 3 omitted it: Part F's public-author-name decision is still open.
+`GuideMeta` renders the byline line conditionally, so setting `author` on any
+`GUIDES` entry will make it appear with no further code changes.
+
+**Guide #1 content note:** genuinely useful, specific how-to advice (the PREP/
+Past-Present-Future/Problem-Solution frameworks, concrete failure modes,
+a practice routine linking to `/topics` and `/topic-generator`) — but it is a
+**draft for your review**, not filed as a finished, human-verified article.
+It contains no fabricated testimonials, screenshots, or statistics. Read it
+before/after this deploys and edit in your own voice/experience per §7.3
+before treating it as done — that's explicitly what the plan asks for, and
+it's the one step only you can do.
+
+**Verified:** tsc/eslint/build clean (the real test for `.mdx` compilation,
+since `tsc` doesn't process `.mdx` files itself). `next build` route table
+confirms `/guides` and the guide page render fully static (`○`) — the same
+client-side-`useUser()` `PracticeCta` pattern from Phase 6 kept them static.
+`next start` + curl: both routes `200` logged out, an unpublished slug
+`404`s, unique title/canonical/`<h1>`, both JSON-LD blocks (`BreadcrumbList`,
+`Article`) parse as valid JSON with no `author` field, `sitemap.xml` lists
+both new URLs, and the guide's headings/list/blockquote/internal links
+(`/topics`, `/topic-generator`) all render as expected in the built HTML.
+
+**Not done — needs you:** editing guide #1 in your own voice before you'd
+call it finished; writing/reviewing guides #2–10 at the plan's cadence;
+requesting indexing for `/guides` in GSC after this deploys.
 
 This is where most long-term traffic comes from. Code setup is one session; the
 writing is ongoing.
